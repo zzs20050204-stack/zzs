@@ -15,6 +15,9 @@ const AdminProperty = lazy(() => import("../page/Property/adminProperty"));    /
 const Suggestion = lazy(() => import("../page/Suggestion"));  
 const AdminSuggestion = lazy(() => import("../page/Suggestion/adminSuggestion"));  // 管理员：建议反馈管理
 
+const VisitorPage = lazy(() => import("../page/VisitorPage"));
+const VisitorAudit = lazy(() => import("../page/VisitorPage/AuditPage"));
+
 // 路由映射表：全部 带 / 斜杠
 export const componentMap: Record<string, ReactNode> = {
   "/goods": <Goods />,
@@ -33,4 +36,6 @@ export const componentMap: Record<string, ReactNode> = {
   "/suggestion": <Suggestion />,
   // 建议反馈管理（管理员端）"
   "/admin/suggestion": <AdminSuggestion />,
+    "/visitor": <VisitorPage />,
+  "/admin/visitor": <VisitorAudit />
 };

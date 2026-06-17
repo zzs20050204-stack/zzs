@@ -24,7 +24,7 @@ export default function Property() {
       // ✅ 终极正确：直接取 username！
       // ===========================
       const username = sessionStorage.getItem('username');
-      console.log("当前用户名：", username);
+      
 
       if (!username) {
         message.error("未获取到用户信息");
@@ -34,7 +34,7 @@ export default function Property() {
 
       // 请求接口
       const res = await http.get(`/property/bill/list/user?userId=${username}`);
-      console.log("缴费数据：", res.data);
+     
 
       if (res.data.code === 200) {
         setList(res.data.data);

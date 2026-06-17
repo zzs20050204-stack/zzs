@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
 import {
-  List, Button, Input, Modal, Form, message,
-  Popconfirm, Card, Typography, Empty, Checkbox, Tag, Space
+  Button, Input, Modal, Form, message,
+  Popconfirm, Card, Typography, Empty, Checkbox, Tag, Space, Switch, DatePicker
 } from 'antd';
-import {
-  PlusOutlined, DeleteOutlined, FileTextOutlined, SearchOutlined
-} from '@ant-design/icons';
+import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useSelector } from 'react-redux';
+import dayjs from 'dayjs';
 import http from '../../utils/http/http';
 
 const { Text, Title } = Typography;
@@ -18,6 +17,9 @@ interface NoticeItem {
   content: string;
   userId: number;
   createTime?: string;
+  isTop: number;
+  expireTime?: string;
+  isExpired?: boolean;
 }
 
 function Notification() {
@@ -62,11 +64,18 @@ function Notification() {
     fetchUsers();
   }, []);
 
+  // 获取列表 + 标记过期
   const getNoticeList = async () => {
     setLoading(true);
     try {
       const res = await http.get('/notice/user/list');
-      setNoticeList(res.data.data || []);
+      let list: NoticeItem[] = res.data.data || [];
+      const now = dayjs();
+      list = list.map(item => {
+        item.isExpired = item.expireTime ? dayjs(item.expireTime).isBefore(now) : false;
+        return item;
+      });
+      setNoticeList(list);
     } catch {
       message.error('加载公告失败');
     } finally {
@@ -74,14 +83,28 @@ function Notification() {
     }
   };
 
+  // 发布公告
   const handleSave = async () => {
     if (!currentUserId) return message.error('请登录');
     try {
       const values = await form.validateFields();
       const content = anonymous ? values.content + '||ANON||' : values.content;
 
-      await http.post('/notice/user/add',
-        { title: values.title, content },
+      const postData: Record<string, any> = {
+        title: values.title,
+        content: content
+      };
+
+      if (isAdmin) {
+        postData.isTop = values.isTop ? 1 : 0;
+        if (values.expireTime) {
+          postData.expireTime = dayjs(values.expireTime).format('YYYY-MM-DD HH:mm:ss');
+        }
+      }
+
+      await http.post(
+        '/notice/user/add',
+        postData,
         { params: { userId: currentUserId } }
       );
 
@@ -90,18 +113,22 @@ function Notification() {
       form.resetFields();
       setAnonymous(false);
       getNoticeList();
-    } catch {
+    } catch (err: any) {
+      console.error(err);
       message.error('发布失败');
     }
   };
 
-  const handleDelete = async (record: NoticeItem) => {
-    if (!currentUserId) return;
-    if (!isAdmin && record.userId !== currentUserId) {
-      return message.error('只能删除自己发布的公告');
-    }
+  // 删除公告
+  const handleDelete = async (item: NoticeItem) => {
     try {
-      await http.delete('/notice/admin/delete', { params: { id: record.id } });
+      if (isAdmin) {
+        await http.delete('/notice/admin/delete', { params: { id: item.id } });
+      } else {
+        await http.delete('/notice/user/delete', {
+          params: { id: item.id, loginUserId: currentUserId }
+        });
+      }
       message.success('删除成功');
       getNoticeList();
     } catch {
@@ -109,22 +136,33 @@ function Notification() {
     }
   };
 
+  // 切换置顶状态
+  const handleToggleTop = async (id: number, currentTop: number) => {
+    try {
+      // 1 和 0 互相切换
+      const newTop = currentTop === 1 ? 0 : 1;
+      await http.put('/notice/toggleTop', null, { params: { id, isTop: newTop } });
+      message.success(newTop === 1 ? '已置顶' : '已取消置顶');
+      getNoticeList();
+    } catch {
+      message.error('操作失败');
+    }
+  };
+
+  const openModal = () => {
+    form.resetFields();
+    setVisible(true);
+  };
+
   const filteredList = noticeList.filter(item =>
-    item.title.includes(searchText) || item.content.replace('||ANON||', '').includes(searchText)
+    item.title.includes(searchText) || item.content.includes(searchText)
   );
 
   return (
-    <div style={{ padding: '24px', background: '#f5f7fa', minHeight: 'calc(100vh - 180px)' }}>
-      {/* 顶部栏 */}
-      <Card bordered={false} style={{ marginBottom: 20, borderRadius: 12 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <FileTextOutlined style={{ fontSize: 20, color: '#1890ff' }} />
-            <div>
-              <Title level={5} style={{ margin: 0 }}>社区公告</Title>
-              <Text type="secondary" style={{ fontSize: 12 }}>支持实名 / 匿名发布</Text>
-            </div>
-          </div>
+    <div style={{ padding: 20 }}>
+      <Card style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Title level={4} style={{ margin: 0 }}>社区公告</Title>
           <Space>
             <Search
               placeholder="搜索标题/内容"
@@ -133,36 +171,53 @@ function Notification() {
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
             />
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => {
-              form.resetFields();
-              setAnonymous(false);
-              setVisible(true);
-            }}>发布新公告</Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={openModal}>发布新公告</Button>
           </Space>
         </div>
       </Card>
 
-      {/* 卡片式列表（核心改这里） */}
-      <List
-        loading={loading}
-        dataSource={filteredList}
-        grid={{ gutter: 16, column: 2 }} // 一行2张卡片，可改1/2/3
-        locale={{ emptyText: <Empty description="暂无公告" /> }}
-        renderItem={(item) => {
-          const isAnon = (item.content || '').endsWith('||ANON||');
-          const realContent = item.content.replace('||ANON||', '');
-          const realName = userMap[item.userId] || `用户${item.userId}`;
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 60, fontSize: 16 }}>加载中...</div>
+      ) : filteredList.length === 0 ? (
+        <Empty description="暂无公告" style={{ padding: 60 }} />
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          {filteredList.map((item) => {
+            const isAnon = (item.content || '').endsWith('||ANON||');
+            const realContent = item.content.replace('||ANON||', '');
+            const realName = userMap[item.userId] || `用户${item.userId}`;
 
-          return (
-            <List.Item>
+            return (
               <Card
-                title={item.title}
-                bordered
-                style={{ borderRadius: 10, height: '100%' }}
+                key={item.id}
+                title={
+                  <Space>
+                    {item.isTop === 1 && <Tag color="red">置顶</Tag>}
+                    {item.isExpired && <Tag color="default">已过期</Tag>}
+                    <span>{item.title}</span>
+                  </Space>
+                }
+                variant="outlined"
+                style={{
+                  borderRadius: 10,
+                  height: '100%',
+                  border: item.isTop === 1 ? '1px solid red' : undefined
+                }}
                 extra={
-                  <Popconfirm title="确定删除？" onConfirm={() => handleDelete(item)}>
-                    <Button type="text" danger size="small" icon={<DeleteOutlined />} />
-                  </Popconfirm>
+                  <Space>
+                    {/* 管理员专属：置顶/取消置顶切换按钮 */}
+                    {isAdmin && (
+                      <Button
+                        size="small"
+                        onClick={() => handleToggleTop(item.id, item.isTop)}
+                      >
+                        {item.isTop === 1 ? '取消置顶' : '设为置顶'}
+                      </Button>
+                    )}
+                    <Popconfirm title="确定删除？" onConfirm={() => handleDelete(item)}>
+                      <Button type="text" danger size="small" icon={<DeleteOutlined />} />
+                    </Popconfirm>
+                  </Space>
                 }
               >
                 <div style={{ marginBottom: 12 }}>
@@ -175,15 +230,17 @@ function Notification() {
                   </Text>
                 </Space>
                 <div style={{ marginTop: 8, textAlign: 'right' }}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>{item.createTime}</Text>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    {item.createTime}
+                    {item.expireTime && ` · 有效期至: ${item.expireTime}`}
+                  </Text>
                 </div>
               </Card>
-            </List.Item>
-          );
-        }}
-      />
+            );
+          })}
+        </div>
+      )}
 
-      {/* 发布弹窗 */}
       <Modal
         open={visible}
         title="发布社区公告"
@@ -199,7 +256,21 @@ function Notification() {
           <Form.Item name="content" label="公告内容" rules={[{ required: true }]}>
             <Input.TextArea rows={6} placeholder="请输入内容" maxLength={500} showCount />
           </Form.Item>
-          <Checkbox checked={anonymous} onChange={(e) => setAnonymous(e.target.checked)}>匿名发布</Checkbox>
+
+          {isAdmin && (
+            <>
+              <Form.Item name="isTop" label="是否置顶" valuePropName="checked">
+                <Switch />
+              </Form.Item>
+              <Form.Item name="expireTime" label="有效期（不选永久）">
+                <DatePicker showTime style={{ width: '100%' }} placeholder="选择过期时间" />
+              </Form.Item>
+            </>
+          )}
+
+          <Checkbox checked={anonymous} onChange={(e) => setAnonymous(e.target.checked)}>
+            匿名发布
+          </Checkbox>
           <div style={{ marginTop: 10, color: '#999' }}>
             发布身份：{anonymous ? '匿名用户' : username}
           </div>

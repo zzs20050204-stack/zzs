@@ -15,6 +15,10 @@ public class Notice {
     private String publisher;
     private Integer userId;
     private LocalDateTime createTime;
+    // 新增字段：是否置顶 0-否 1-是
+    private Integer isTop;
+    // 新增字段：公告有效期
+    private LocalDateTime expireTime;
 
     public Integer getId() {
         return id;
@@ -62,5 +66,21 @@ public class Notice {
 
     public void setCreateTime(LocalDateTime createTime) {
         this.createTime = createTime;
+    }
+
+    public Integer getIsTop() {
+        return isTop;
+    }
+
+    public void setIsTop(Integer isTop) {
+        this.isTop = isTop;
+    }
+
+    public LocalDateTime getExpireTime() {
+        return expireTime;
+    }
+
+    public void setExpireTime(LocalDateTime expireTime) {
+        this.expireTime = expireTime;
     }
 }

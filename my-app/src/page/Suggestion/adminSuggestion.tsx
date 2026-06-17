@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   Table, Button, Card, message, Tag, Typography, Tooltip, Popconfirm
 } from 'antd';
+import type { ColumnType } from 'antd/es/table';
 import { useSelector } from 'react-redux';
 import http from '../../utils/http/http';
 
@@ -81,13 +82,14 @@ export default function AdminSuggestion() {
     loadList();
   }, [currentName, isAdmin]);
 
-  // 表格列 对标报修页面样式，保留原有所有操作
-  const columns = [
+  // 显式标注列类型 ColumnType<Suggestion>[] 解决align类型报错
+  const columns: ColumnType<Suggestion>[] = [
     {
       title: '建议内容',
       dataIndex: 'content',
       ellipsis: true,
-      render: (text) => (
+      // 显式标注text类型为string，消除隐式any
+      render: (text: string) => (
         <Tooltip title={text} placement="topLeft">
           {text}
         </Tooltip>

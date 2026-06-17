@@ -27,7 +27,9 @@ import {
   FileOutlined,
   PoweroffOutlined,
   DownOutlined,
-  HomeOutlined 
+  HomeOutlined ,
+  UsergroupAddOutlined,
+  AuditOutlined
 } from '@ant-design/icons';
 
 type MenuItem = Required<MenuProps>['items'][number];
@@ -55,6 +57,8 @@ const titleMap: Record<string, string> = {
   '/admin/property': '缴费单管理',
   '/suggestion': '建议反馈',
   '/admin/suggestion': '建议管理',
+   '/visitor': '访客预约',
+  '/admin/visitor': '访客审核'
 };
 
 function TopMenu() {
@@ -99,7 +103,8 @@ function TopMenu() {
     } else if (key === 'logout') {
       removeToken();
       dispatch(setToken(''));
-      navigate('/login');
+      dispatch(setMenuKey({ key: '1', title: '首页' }));
+      navigate('/login', { replace: true });
     }
   };
 
@@ -112,6 +117,7 @@ function TopMenu() {
    
     getItem('公告管理', '/10', <NotificationOutlined />),
     getItem('用户管理', '/11', <TeamOutlined />),
+    getItem('访客审核', '/admin/visitor', <AuditOutlined />),
     getItem('缴费单管理', '/admin/property', <FileOutlined />),
     getItem('建议管理', '/admin/suggestion', <MessageOutlined />),
     getItem('我的', '/my', <UserAddOutlined />),
@@ -123,6 +129,7 @@ function TopMenu() {
     getItem('在线报修', '/9', <WarningOutlined />),
     getItem('公告', '/10', <NotificationOutlined />),
     getItem('物业缴费', '/property', <PayCircleOutlined />),
+    getItem('访客预约', '/visitor', <UsergroupAddOutlined />),
     getItem('建议反馈', '/suggestion', <MessageOutlined />),
     getItem('我的', '/my', <UserAddOutlined />),
   ];

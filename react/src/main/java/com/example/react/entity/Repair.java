@@ -16,6 +16,8 @@ public class Repair {
     private String address;
     private String status;
     private LocalDateTime createTime;
+    // 新增：存储图片base64
+    private String imgUrl;
 
     public Integer getId() {
         return id;
@@ -71,5 +73,14 @@ public class Repair {
 
     public void setCreateTime(LocalDateTime createTime) {
         this.createTime = createTime;
+    }
+
+    // 图片字段 getter & setter
+    public String getImgUrl() {
+        return imgUrl;
+    }
+
+    public void setImgUrl(String imgUrl) {
+        this.imgUrl = imgUrl;
     }
 }

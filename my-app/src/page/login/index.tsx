@@ -4,8 +4,9 @@ import { Button, Checkbox, Flex, Form, Input } from 'antd';
 import http from '../../utils/http/http';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
-import { setToken, setUsername } from '../../store/login/authSlice';
+import { setToken, setUsername, setUserId } from '../../store/login/authSlice';
 import { removeToken } from '../../utils/auth';
+import { setMenuKey } from '../../utils/menuSlice';
 import './index.scss';
 
 function Login() {
@@ -26,7 +27,11 @@ function Login() {
 
         dispatch(setToken(token));
         dispatch(setUsername(user.username));
+        dispatch(setUserId(user.id));
+        // login 登录成功内新增
+      
         localStorage.setItem("token", token);
+        localStorage.setItem("userId", String(user.id));
 
         navigate('/home', { replace: true });
       } else {

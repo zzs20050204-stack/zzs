@@ -9,6 +9,7 @@
 
   export function removeToken() {
     sessionStorage.removeItem("token");
+    sessionStorage.removeItem("userId");
   }
 
   export function isLogin() {
