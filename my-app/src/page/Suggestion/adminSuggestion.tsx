@@ -159,17 +159,18 @@ export default function AdminSuggestion() {
 
   // 页面布局完全和报修页面一致
   return (
-    <div style={{ padding: '24px 32px', maxWidth: 1400, margin: '0 auto' }}>
+    <div style={{ padding: '24px 16px', maxWidth: 1400, margin: '0 auto' }}>
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
         marginBottom: 20,
         borderBottom: '1px solid #f0f2f5',
-        paddingBottom: 12
+        paddingBottom: 12,
+        flexWrap: 'wrap', gap: 12
       }}>
         <Title level={4} style={{ margin: 0 }}>建议反馈管理</Title>
-        <Space size="small">
+        <Space size="small" wrap>
           <Input
             placeholder="搜索内容/用户"
             value={searchContent}
@@ -203,6 +204,7 @@ export default function AdminSuggestion() {
           loading={loading}
           columns={columns}
           dataSource={list}
+          scroll={{ x: 'max-content' }}
           pagination={{ pageSize: 10 }}
           locale={{ emptyText: <Empty description="暂无建议反馈" /> }}
         />

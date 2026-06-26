@@ -101,16 +101,16 @@ export default function AdminProperty() {
   }, []);
 
   return (
-    <div style={{ padding: 16 }}>
+    <div style={{ padding: '16px 8px' }}>
       <Card
         title="缴费账单管理"
         extra={
-          <Space size="middle">
+          <Space size="small" wrap>
             <Input
               placeholder="搜索用户ID"
               value={searchParams.userId}
               onChange={e => setSearchParams({ ...searchParams, userId: e.target.value })}
-              style={{ width: 160 }}
+              style={{ width: 140 }}
               allowClear
             />
             <Select
@@ -145,6 +145,7 @@ export default function AdminProperty() {
           rowKey="id"
           loading={loading}
           dataSource={list}
+          scroll={{ x: 'max-content' }}
           pagination={{ pageSize: 10 }}
           locale={{ emptyText: <Empty description="暂无缴费单" /> }}
           columns={[
@@ -166,7 +167,10 @@ export default function AdminProperty() {
         onOk={handleAdd}
         okText="确定" cancelText="取消"
         confirmLoading={addLoading}
+        centered
+        destroyOnClose
         maskClosable={false}
+        width={480}
       >
         <Form form={form} layout="vertical">
           <Form.Item

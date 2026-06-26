@@ -68,7 +68,8 @@ const ProfileModal = ({ visible, onClose, user }: ProfileModalProps) => {
         title="个人中心"
         open={visible}
         onCancel={onClose}
-        width={600}
+        width={520}
+        centered
         footer={[
           <Button key="close" onClick={onClose}>关闭</Button>,
           <Button key="edit" icon={<EditOutlined />} onClick={openEdit}>编辑资料</Button>,
@@ -105,10 +106,13 @@ const ProfileModal = ({ visible, onClose, user }: ProfileModalProps) => {
         open={editOpen}
         onCancel={() => setEditOpen(false)}
         onOk={submitEdit}
-        okText="确定" cancelText="取消"
+        okText="保存" cancelText="取消"
         confirmLoading={editLoading}
+        centered
+        destroyOnClose
+        maskClosable={false}
       >
-        <Form form={form} labelCol={{ span: 4 }} wrapperCol={{ span: 18 }}>
+        <Form form={form} layout="vertical">
           <Form.Item label="用户名" name="username"><Input disabled /></Form.Item>
           <Form.Item label="手机号" name="phone"><Input placeholder="请输入手机号" /></Form.Item>
           <Form.Item label="邮箱" name="email"><Input placeholder="请输入邮箱" /></Form.Item>

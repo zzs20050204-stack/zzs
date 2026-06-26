@@ -577,7 +577,7 @@ const MyPage = () => {
                     <Radio.Group value={selectedAddressId} onChange={(e) => setSelectedAddressId(e.target.value)} style={{ marginTop: 10, width: '100%' }}>
                       <Row gutter={[12, 8]}>
                         {addressList.map(a => (
-                          <Col span={12} key={a.id}>
+                          <Col xs={24} sm={12} key={a.id}>
                             <Radio value={a.id} style={{ display: 'flex', alignItems: 'flex-start' }}>
                               <div style={{ marginLeft: 4 }}>
                                 <Text strong>{a.receiverName}</Text>
@@ -596,10 +596,11 @@ const MyPage = () => {
 
                 {/* 底部结算栏 */}
                 <div style={{
-                  marginBottom: 20, padding: '12px 20px',
+                  marginBottom: 20, padding: '12px 16px',
                   background: 'linear-gradient(135deg, #fff5f5 0%, #fff0f0 100%)',
                   borderRadius: 12, border: '1px solid #ffe0e0',
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  flexWrap: 'wrap', gap: 8
                 }}>
                   <div>
                     <Checkbox
@@ -963,7 +964,9 @@ const MyPage = () => {
         open={addressModalVisible}
         onCancel={() => setAddressModalVisible(false)}
         footer={null}
-        width={500}
+        width={480}
+        centered
+        destroyOnClose
       >
         <Form form={addressForm} layout="vertical">
           <Form.Item label="收货人" name="receiverName" rules={[{ required: true }]}>
@@ -1005,8 +1008,8 @@ const MyPage = () => {
         </div>
       </Modal>
 
-      <Modal open={editOpen} onCancel={() => setEditOpen(false)} onOk={submitEdit} title="编辑资料" okText="确定" cancelText="取消">
-        <Form form={form} labelCol={{ span: 5 }} wrapperCol={{ span: 17 }}>
+      <Modal open={editOpen} onCancel={() => setEditOpen(false)} onOk={submitEdit} title="编辑资料" okText="保存" cancelText="取消" centered destroyOnClose maskClosable={false}>
+        <Form form={form} layout="vertical">
           <Form.Item label="用户名" name="username"><Input disabled /></Form.Item>
           <Form.Item label="手机号" name="phone"><Input /></Form.Item>
           <Form.Item label="邮箱" name="email"><Input /></Form.Item>

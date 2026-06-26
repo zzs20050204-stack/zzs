@@ -301,18 +301,50 @@
   }
 
   .banner-title {
-    font-size: 28px !important;
+    font-size: 26px !important;
   }
 
   .banner-desc {
-    font-size: 15px !important;
+    font-size: 14px !important;
   }
 
   .banner-text {
     left: 5%;
+    max-width: 90%;
   }
 
   .section-header h3 {
     font-size: 20px !important;
+  }
+
+  .section-container {
+    padding: 0 16px;
+  }
+
+  .stats-strip {
+    padding: 20px 0;
+  }
+
+  .service-section {
+    padding: 32px 0;
+  }
+
+  .info-section {
+    padding: 32px 0;
+  }
+
+  .service-card .ant-card-body {
+    padding: 20px 12px;
+  }
+
+  .service-icon {
+    width: 48px;
+    height: 48px;
+    font-size: 22px;
+    border-radius: 12px;
+  }
+
+  .stat-card .ant-card-body {
+    padding: 12px 14px;
   }
 }

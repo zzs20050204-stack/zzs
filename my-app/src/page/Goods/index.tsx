@@ -50,6 +50,7 @@ const Goods = () => {
 
   const [user, setUser] = useState<UserInfo | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [goodsList, setGoodsList] = useState<GoodsItem[]>([]);
   const [originList, setOriginList] = useState<GoodsItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -127,6 +128,9 @@ const Goods = () => {
   useEffect(() => {
     getUserInfo();
     getGoodsList();
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   // 发布商品
@@ -257,22 +261,23 @@ const Goods = () => {
   };
 
   return (
-    <div style={{ padding: '30px 24px', maxWidth: '1400px', margin: '0 auto' }}>
+    <div style={{ padding: '30px 16px', maxWidth: '1400px', margin: '0 auto' }}>
       <div style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        marginBottom: 28, paddingBottom: 12, borderBottom: '1px solid #f2f2f2'
+        marginBottom: 28, paddingBottom: 12, borderBottom: '1px solid #f2f2f2',
+        flexWrap: 'wrap', gap: 12
       }}>
         <div>
           <Title level={3} style={{ margin: 0, fontWeight: 600 }}>🏪 社区商圈</Title>
           <Text type="secondary">邻里好物 · 便捷交易 · 互助共享</Text>
         </div>
-        <Space>
+        <Space wrap>
           <Input.Search
             placeholder="搜索商品名称"
             value={searchName}
             onChange={e => handleSearch(e.target.value)}
             onSearch={handleSearch}
-            style={{ width: 260 }}
+            style={{ width: '100%', maxWidth: 260 }}
             allowClear
             prefix={<SearchOutlined />}
           />
@@ -289,15 +294,15 @@ const Goods = () => {
           <Empty description="暂无商品" />
         </Card>
       ) : (
-        <Row gutter={[24, 24]}>
+        <Row gutter={[isMobile ? 12 : 24, isMobile ? 12 : 24]}>
           {goodsList.map((item) => (
-            <Col xs={24} sm={12} md={8} lg={6} key={item.id}>
+            <Col xs={12} sm={12} md={8} lg={6} key={item.id}>
               <Card
                 hoverable
                 loading={loading}
-                style={{ borderRadius: 16, overflow: 'hidden', height: '100%', display: 'flex', flexDirection: 'column' }}
+                style={{ borderRadius: isMobile ? 12 : 16, overflow: 'hidden', height: '100%', display: 'flex', flexDirection: 'column' }}
                 cover={
-                  <div style={{ height: 180, backgroundColor: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
+                  <div style={{ height: isMobile ? 120 : 180, backgroundColor: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
                     {item.img ? (
                       <img
                         src={item.img.startsWith('/goods-images/') ? BASE_URL + item.img : item.img}
@@ -320,30 +325,30 @@ const Goods = () => {
                     )}
                   </div>
                 }
-                styles={{ body: { padding: '16px', flex: 1, display: 'flex', flexDirection: 'column' } }}
+                styles={{ body: { padding: isMobile ? '10px' : '16px', flex: 1, display: 'flex', flexDirection: 'column' } }}
                 actions={[
                   <Tooltip title="加入购物车" key="cart">
-                    <Button type="text" loading={cartLoadingId === item.id} icon={<ShoppingCartOutlined style={{ fontSize: 18 }} />} onClick={(e) => { e.stopPropagation(); handleAddCart(item.id); }} />
+                    <Button type="text" size={isMobile ? 'small' : 'middle'} loading={cartLoadingId === item.id} icon={<ShoppingCartOutlined style={{ fontSize: isMobile ? 15 : 18 }} />} onClick={(e) => { e.stopPropagation(); handleAddCart(item.id); }} />
                   </Tooltip>,
                   <Tooltip title="查看评价" key="comment">
-                    <Button type="text" icon={<MessageOutlined style={{ fontSize: 18 }} />} onClick={(e) => { e.stopPropagation(); openCommentModal(item.id); }} />
+                    <Button type="text" size={isMobile ? 'small' : 'middle'} icon={<MessageOutlined style={{ fontSize: isMobile ? 15 : 18 }} />} onClick={(e) => { e.stopPropagation(); openCommentModal(item.id); }} />
                   </Tooltip>,
                   <Tooltip title="立即购买" key="buy">
-                    <Button type="primary" size="small" loading={buyLoadingId === item.id} onClick={(e) => { e.stopPropagation(); handleBuy(item); }}>立即购买</Button>
+                    <Button type="primary" size="small" loading={buyLoadingId === item.id} onClick={(e) => { e.stopPropagation(); handleBuy(item); }}>{isMobile ? '购买' : '立即购买'}</Button>
                   </Tooltip>,
                 ]}
               >
                 <Card.Meta
-                  title={<span style={{ fontSize: 15, fontWeight: 600, color: '#1a1a2e' }}>{item.name}</span>}
+                  title={<span style={{ fontSize: isMobile ? 13 : 15, fontWeight: 600, color: '#1a1a2e' }}>{item.name}</span>}
                   description={
                     <div>
-                      <div style={{ color: '#ff4d4f', fontSize: 22, fontWeight: 700, margin: '8px 0 6px' }}>
+                      <div style={{ color: '#ff4d4f', fontSize: isMobile ? 16 : 22, fontWeight: 700, margin: isMobile ? '4px 0 4px' : '8px 0 6px' }}>
                         ¥{item.price}
                       </div>
-                      <Paragraph ellipsis={{ rows: 2 }} style={{ fontSize: 12, color: '#8c8c8c', margin: 0, lineHeight: 1.6 }}>
+                      <Paragraph ellipsis={{ rows: isMobile ? 1 : 2 }} style={{ fontSize: isMobile ? 11 : 12, color: '#8c8c8c', margin: 0, lineHeight: 1.6 }}>
                         {item.info || '暂无简介'}
                       </Paragraph>
-                      <div style={{ fontSize: 11, color: '#bfbfbf', marginTop: 10, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <div style={{ fontSize: isMobile ? 10 : 11, color: '#bfbfbf', marginTop: isMobile ? 6 : 10, display: 'flex', alignItems: 'center', gap: 4 }}>
                         <CalendarOutlined /> {item.createTime?.split(' ')[0]}
                       </div>
                     </div>
@@ -360,8 +365,11 @@ const Goods = () => {
         open={addModalVisible}
         onCancel={() => setAddModalVisible(false)}
         onOk={handleAddGoods}
-        okText="确定" cancelText="取消"
+        okText="发布" cancelText="取消"
         confirmLoading={addLoading}
+        centered
+        destroyOnClose
+        maskClosable={false}
         width={520}
       >
         <Form form={form} layout="vertical">
@@ -414,8 +422,11 @@ const Goods = () => {
         open={editModalVisible}
         onCancel={() => setEditModalVisible(false)}
         onOk={handleUpdateGoods}
-        okText="确定" cancelText="取消"
+        okText="保存" cancelText="取消"
         confirmLoading={editLoading}
+        centered
+        destroyOnClose
+        maskClosable={false}
         width={520}
       >
         <Form form={editForm} layout="vertical">
@@ -463,7 +474,7 @@ const Goods = () => {
         </Form>
       </Modal>
 
-      <Modal title="商品评价" open={commentModalVisible} footer={null} width={580} onCancel={() => setCommentModalVisible(false)}>
+      <Modal title="商品评价" open={commentModalVisible} footer={null} width={520} centered onCancel={() => setCommentModalVisible(false)}>
         <Form form={commentForm} layout="vertical">
           <Form.Item name="content" rules={[{ required: true }]}>
             <Input.TextArea rows={3} placeholder="写下你的评价..." />

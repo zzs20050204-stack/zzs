@@ -183,20 +183,21 @@ export default function VisitorPage() {
   ];
 
   return (
-    <div style={{ padding: '24px 32px', maxWidth: 1200, margin: '0 auto' }}>
+    <div style={{ padding: '24px 16px', maxWidth: 1200, margin: '0 auto' }}>
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
         marginBottom: 20,
         borderBottom: '1px solid #f0f2f5',
-        paddingBottom: 12
+        paddingBottom: 12,
+        flexWrap: 'wrap', gap: 12
       }}>
         <div>
           <Title level={4} style={{ margin: 0 }}>我的访客预约</Title>
           <Text type="secondary" style={{ fontSize: 13 }}>管理来访预约记录</Text>
         </div>
-        <Space size="small">
+        <Space size="small" wrap>
           <Input
             placeholder="搜索姓名/手机号"
             value={searchName}
@@ -230,6 +231,7 @@ export default function VisitorPage() {
           columns={columns}
           rowKey="id"
           loading={loading}
+          scroll={{ x: 'max-content' }}
           pagination={{ pageSize: 10 }}
           locale={{
             emptyText: (
@@ -249,8 +251,10 @@ export default function VisitorPage() {
         open={addModal}
         onCancel={() => { setAddModal(false); form.resetFields(); }}
         footer={null}
+        centered
+        destroyOnClose
         maskClosable={false}
-        width={520}
+        width={480}
       >
         <Form form={form} layout="vertical" onFinish={submitApply}>
           <Form.Item
@@ -301,6 +305,7 @@ export default function VisitorPage() {
         onCancel={() => setCodeModal(false)}
         footer={null}
         width={360}
+        centered
         maskClosable={false}
       >
         {currentItem && (

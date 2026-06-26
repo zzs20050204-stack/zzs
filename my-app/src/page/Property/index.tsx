@@ -102,20 +102,21 @@ export default function Property() {
   ];
 
   return (
-    <div style={{ padding: '24px 32px', maxWidth: 1100, margin: '0 auto' }}>
+    <div style={{ padding: '24px 16px', maxWidth: 1100, margin: '0 auto' }}>
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
         marginBottom: 20,
         borderBottom: '1px solid #f0f2f5',
-        paddingBottom: 12
+        paddingBottom: 12,
+        flexWrap: 'wrap', gap: 12
       }}>
         <div>
           <Title level={4} style={{ margin: 0 }}>物业缴费</Title>
           <Text type="secondary" style={{ fontSize: 13 }}>查看和缴纳物业管理相关费用</Text>
         </div>
-        <Space size="small">
+        <Space size="small" wrap>
           <Select
             placeholder="费用类型"
             value={searchPayType || undefined}
@@ -149,6 +150,7 @@ export default function Property() {
           loading={loading}
           dataSource={list}
           columns={columns}
+          scroll={{ x: 'max-content' }}
           pagination={{ pageSize: 10 }}
           locale={{
             emptyText: <Empty description="暂无缴费记录">

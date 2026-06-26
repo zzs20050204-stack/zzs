@@ -12,3 +12,145 @@ code {
     monospace;
 }
 
+/* ====== 弹窗美化（PC + 手机） ====== */
+.ant-modal-content {
+  border-radius: 12px !important;
+  overflow: hidden;
+}
+
+.ant-modal-header {
+  border-radius: 12px 12px 0 0 !important;
+  padding: 18px 24px 12px !important;
+}
+
+.ant-modal-title {
+  font-size: 16px !important;
+  font-weight: 600 !important;
+}
+
+.ant-modal-body {
+  padding: 16px 24px !important;
+}
+
+.ant-modal-footer {
+  padding: 12px 24px 18px !important;
+  border-top: 1px solid #f5f5f5;
+}
+
+@media (max-width: 768px) {
+  /* 弹窗适配 */
+  .ant-modal {
+    max-width: 92vw !important;
+  }
+  .ant-modal .ant-descriptions-item-label {
+    white-space: normal;
+  }
+  .ant-modal-header {
+    padding: 14px 16px 10px !important;
+  }
+  .ant-modal-body {
+    padding: 12px 16px !important;
+  }
+  .ant-modal-footer {
+    padding: 10px 16px 14px !important;
+  }
+
+  /* 卡片内边距缩减 */
+  .ant-card .ant-card-body {
+    padding: 16px 12px !important;
+  }
+
+  /* 标题字号 */
+  .ant-typography h4 {
+    font-size: 16px !important;
+  }
+  .ant-typography h3 {
+    font-size: 18px !important;
+  }
+
+  /* 表格字号缩减 */
+  .ant-table {
+    font-size: 12px !important;
+  }
+  .ant-table .ant-table-cell {
+    padding: 8px 6px !important;
+  }
+  .ant-table-thead .ant-table-cell {
+    padding: 6px !important;
+    font-size: 11px !important;
+  }
+
+  /* 分页器字号 */
+  .ant-pagination {
+    font-size: 12px !important;
+  }
+
+  /* 表单控件紧凑 */
+  .ant-form .ant-form-item {
+    margin-bottom: 12px;
+  }
+  .ant-form-item-label {
+    padding-bottom: 2px !important;
+  }
+  .ant-form-item-label > label {
+    font-size: 13px !important;
+  }
+
+  /* 选择框和输入框字号 */
+  .ant-select, .ant-input, .ant-picker {
+    font-size: 13px !important;
+  }
+
+  /* Popover 面板适配 */
+  .ant-popover-inner {
+    max-width: 96vw !important;
+  }
+
+  /* 抽屉适配 */
+  .ant-drawer .ant-drawer-body {
+    padding: 12px !important;
+  }
+
+  /* 按钮紧凑 */
+  .ant-btn {
+    font-size: 12px !important;
+    padding: 4px 12px !important;
+  }
+
+  /* 标签紧凑 */
+  .ant-tag {
+    font-size: 11px !important;
+    padding: 0 6px !important;
+    line-height: 18px !important;
+  }
+
+  /* 统计卡片数值 */
+  .ant-statistic-content-value {
+    font-size: 20px !important;
+  }
+
+  /* 描述列表 */
+  .ant-descriptions-item-label,
+  .ant-descriptions-item-content {
+    font-size: 12px !important;
+    padding: 8px !important;
+  }
+
+  /* 水平表单在手机端强制竖排 */
+  .ant-form-horizontal .ant-form-item-label {
+    flex: 0 0 100% !important;
+    max-width: 100% !important;
+    text-align: left !important;
+    padding-bottom: 0 !important;
+  }
+  .ant-form-horizontal .ant-form-item-control {
+    flex: 0 0 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* 上传组件 */
+  .ant-upload.ant-upload-select-picture-card {
+    width: 80px !important;
+    height: 80px !important;
+  }
+}

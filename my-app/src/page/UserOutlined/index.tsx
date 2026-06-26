@@ -161,21 +161,22 @@ function UserOutlined() {
   ];
 
   return (
-    <div style={{ padding: '24px 32px', maxWidth: 1400, margin: '0 auto' }}>
+    <div style={{ padding: '24px 16px', maxWidth: 1400, margin: '0 auto' }}>
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
         marginBottom: 20,
         borderBottom: '1px solid #f0f2f5',
-        paddingBottom: 12
+        paddingBottom: 12,
+        flexWrap: 'wrap', gap: 12
       }}>
         <Title level={4} style={{ margin: 0 }}>住户管理</Title>
         <Search
           placeholder="搜索住户姓名"
           allowClear
           enterButton={<SearchOutlined />}
-          style={{ width: 360 }}
+          style={{ width: '100%', maxWidth: 360 }}
           onSearch={handleSearch}
         />
       </div>
@@ -183,7 +184,7 @@ function UserOutlined() {
       <Card
         bordered={false}
         style={{ borderRadius: 12 }}
-        bodyStyle={{ padding: '20px 24px' }}
+        styles={{ body: { padding: '20px 16px' } }}
       >
         <div style={{ textAlign: 'right', marginBottom: 16 }}>
           <Button
@@ -221,10 +222,13 @@ function UserOutlined() {
         title={title}
         onCancel={() => setVisible(false)}
         onOk={handleSave}
-        okText="确定" cancelText="取消"
+        okText="保存" cancelText="取消"
+        centered
+        destroyOnClose
         maskClosable={false}
+        width={440}
       >
-        <Form form={form} labelCol={{ span: 5 }} wrapperCol={{ span: 19 }}>
+        <Form form={form} layout="vertical">
           <Form.Item name="username" label="住户姓名" rules={[{ required: true, message: '请输入住户姓名' }]}>
             <Input />
           </Form.Item>

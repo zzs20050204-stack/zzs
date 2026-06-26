@@ -153,13 +153,13 @@ const AdminOrder = () => {
   ];
 
   return (
-    <div style={{ padding: '24px 32px', maxWidth: 1400, margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottom: '1px solid #f0f2f5', paddingBottom: 12 }}>
+    <div style={{ padding: '24px 16px', maxWidth: 1400, margin: '0 auto' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottom: '1px solid #f0f2f5', paddingBottom: 12, flexWrap: 'wrap', gap: 12 }}>
         <Title level={4} style={{ margin: 0 }}>订单管理</Title>
-        <Search placeholder="订单号 / 商品 / 用户" allowClear enterButton={<SearchOutlined />} style={{ width: 360 }} onSearch={handleSearch} />
+        <Search placeholder="订单号 / 商品 / 用户" allowClear enterButton={<SearchOutlined />} style={{ width: '100%', maxWidth: 360 }} onSearch={handleSearch} />
       </div>
-      <Card variant="borderless" style={{ borderRadius: 12 }} styles={{ body: { padding: '20px 24px' } }}>
-        <Table rowKey="id" loading={loading} columns={columns} dataSource={orderList} pagination={{ pageSize: 10, showSizeChanger: false, showTotal: (t) => `共 ${t} 条` }} locale={{ emptyText: <Empty description="暂无订单" /> }} />
+      <Card variant="borderless" style={{ borderRadius: 12 }} styles={{ body: { padding: '20px 16px' } }}>
+        <Table rowKey="id" loading={loading} columns={columns} dataSource={orderList} scroll={{ x: 'max-content' }} pagination={{ pageSize: 10, showSizeChanger: false, showTotal: (t) => `共 ${t} 条` }} locale={{ emptyText: <Empty description="暂无订单" /> }} />
       </Card>
     </div>
   );

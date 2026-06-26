@@ -104,6 +104,7 @@ export default function Suggestion() {
           rowKey="id"
           loading={listLoading}
           dataSource={list}
+          scroll={{ x: 'max-content' }}
           pagination={{ pageSize: 10 }}
           locale={{
             emptyText: <Empty description="还没有提交过建议">

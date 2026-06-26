@@ -215,17 +215,18 @@ const AllVisitorPage = () => {
   ];
 
   return (
-    <div style={{ padding: '24px 32px', maxWidth: 1400, margin: '0 auto' }}>
+    <div style={{ padding: '24px 16px', maxWidth: 1400, margin: '0 auto' }}>
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
         marginBottom: 20,
         borderBottom: '1px solid #f0f2f5',
-        paddingBottom: 12
+        paddingBottom: 12,
+        flexWrap: 'wrap', gap: 12
       }}>
         <Title level={4} style={{ margin: 0 }}>全部访客预约记录</Title>
-        <Space size="small">
+        <Space size="small" wrap>
           <Input
             placeholder="搜索姓名/手机号"
             value={searchName}
@@ -252,13 +253,14 @@ const AllVisitorPage = () => {
       <Card
         variant="borderless"
         style={{ borderRadius: 12 }}
-        styles={{ body: { padding: '20px 24px' } }}
+        styles={{ body: { padding: '20px 16px' } }}
       >
         <Table
           rowKey="id"
           loading={loading}
           columns={columns}
           dataSource={list}
+          scroll={{ x: 'max-content' }}
           pagination={{ pageSize: 10 }}
           locale={{ emptyText: <Empty description="暂无预约数据" /> }}
         />
@@ -270,9 +272,12 @@ const AllVisitorPage = () => {
         open={rejectModal}
         onOk={confirmReject}
         onCancel={() => setRejectModal(false)}
-        okText="确定" cancelText="取消"
+        okText="驳回" cancelText="取消"
         confirmLoading={rejectModalLoading}
+        centered
+        destroyOnClose
         maskClosable={false}
+        width={420}
       >
         <Input.TextArea
           value={rejectReason}

@@ -456,9 +456,11 @@ function Notification() {
         title={<Space><SoundFilled style={{ color: '#55c4ae' }} /><span>发布社区公告</span></Space>}
         onCancel={() => setVisible(false)}
         onOk={handleSave}
-        width={560}
+        width={520}
+        centered
+        destroyOnClose
         maskClosable={false}
-        okText="确定" cancelText="取消"
+        okText="发布" cancelText="取消"
       >
         <Form form={form} layout="vertical" style={{ marginTop: 8 }}>
           <Form.Item name="title" label="公告标题" rules={[{ required: true, message: '请输入标题' }]}>

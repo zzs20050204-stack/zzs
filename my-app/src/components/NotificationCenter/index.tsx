@@ -66,7 +66,7 @@ const adminTypeRoute: Record<string, string> = {
 
 function loadSet(key: string): Set<string> {
   try {
-    const raw = sessionStorage.getItem(key);
+    const raw = localStorage.getItem(key);
     return raw ? new Set(JSON.parse(raw)) : new Set();
   } catch {
     return new Set();
@@ -74,7 +74,7 @@ function loadSet(key: string): Set<string> {
 }
 
 function saveSet(key: string, set: Set<string>) {
-  sessionStorage.setItem(key, JSON.stringify([...set]));
+  localStorage.setItem(key, JSON.stringify([...set]));
 }
 
 export default function NotificationCenter() {
@@ -87,20 +87,37 @@ export default function NotificationCenter() {
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
   const [isAdmin, setIsAdmin] = useState(false);
-  // 加载已清除时，过滤掉待处理项（它们逻辑上不该跨 session 持久化）
-  const [dismissedIds, setDismissedIds] = useState<Set<string>>(() => {
-    const raw = loadSet(dismissedKey);
-    const filtered = new Set([...raw].filter(id => !id.startsWith('pending-')));
-    return filtered;
-  });
-  const [readIds, setReadIds] = useState<Set<string>>(() => loadSet(readKey));
+  const [winW, setWinW] = useState(window.innerWidth);
+  const [winH, setWinH] = useState(window.innerHeight);
+  const isMobile = winW < 768;
+
+  useEffect(() => {
+    const handleResize = () => { setWinW(window.innerWidth); setWinH(window.innerHeight); };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
+  const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const prevSnapshotRef = useRef<Map<string, string>>(new Map());
   const dispatch = useDispatch();
+  // 用 ref 存当前 key，避免 fetchNotifications 闭包捕获到过期 key
+  const readKeyRef = useRef(readKey);
+  readKeyRef.current = readKey;
+  const dismissedKeyRef = useRef(dismissedKey);
+  dismissedKeyRef.current = dismissedKey;
+  const loadedKeyRef = useRef('');
+
+  // 在 Redux 状态稳定后加载已持久化的已读/已清除数据
+  useEffect(() => {
+    if (dismissedKey !== loadedKeyRef.current) {
+      loadedKeyRef.current = dismissedKey;
+      setDismissedIds(loadSet(dismissedKey));
+      setReadIds(loadSet(readKey));
+    }
+  }, [dismissedKey, readKey]);
 
   const saveDismissed = (set: Set<string>) => {
-    // 待处理项不持久化到 sessionStorage，避免跨 session 永久隐藏
-    const toSave = new Set([...set].filter(id => !id.startsWith('pending-')));
-    saveSet(dismissedKey, toSave);
+    saveSet(dismissedKeyRef.current, set);
   };
 
   useEffect(() => {
@@ -138,7 +155,7 @@ export default function NotificationCenter() {
               changed = true;
             }
           });
-          if (changed) saveSet(readKey, next);
+          if (changed) saveSet(readKeyRef.current, next);
           return changed ? next : prev;
         });
         // 待处理项内容变更时也清除已清除标记
@@ -180,7 +197,7 @@ export default function NotificationCenter() {
     const next = new Set(readIds);
     next.add(id);
     setReadIds(next);
-    saveSet(readKey, next);
+    saveSet(readKeyRef.current, next);
   };
 
   const handleItemClick = (item: NotificationItem) => {
@@ -199,7 +216,7 @@ export default function NotificationCenter() {
     const next = new Set(readIds);
     visibleList.forEach(item => next.add(item.id));
     setReadIds(next);
-    saveSet(readKey, next);
+    saveSet(readKeyRef.current, next);
   };
 
   // 清除已读：把已读的移到已清除（内容变化时会自动恢复）
@@ -215,7 +232,7 @@ export default function NotificationCenter() {
     setDismissedIds(newDismissed);
     setReadIds(newRead);
     saveDismissed(newDismissed);
-    saveSet(readKey, newRead);
+    saveSet(readKeyRef.current, newRead);
   };
 
   const filteredList = activeTab === 'all'
@@ -233,60 +250,82 @@ export default function NotificationCenter() {
     return '#8c8c8c';
   };
 
+  const tabItems = [
+    { key: 'all', label: isMobile ? '全部' : '全部' },
+    { key: 'repair', label: '报修' },
+    { key: 'order', label: '商品' },
+    { key: 'property', label: '缴费' },
+    { key: 'visitor', label: '访客' },
+    { key: 'notice', label: '公告' },
+    { key: 'suggestion', label: '建议' },
+  ];
+
   const content = (
-    <div style={{ width: 400, maxHeight: 480 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 12, borderBottom: '1px solid #f0f0f0', marginBottom: 8 }}>
-        <Text strong style={{ fontSize: 16 }}>消息中心</Text>
-        <div style={{ display: 'flex', gap: 4 }}>
+    <div style={{
+      width: isMobile ? winW - 48 : 400,
+      maxHeight: isMobile ? 380 : 480,
+      padding: 0,
+    }}>
+      <div style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        padding: isMobile ? '4px 6px 6px' : '0 0 12px 0',
+        borderBottom: '1px solid #f0f0f0', marginBottom: isMobile ? 2 : 8
+      }}>
+        <Text strong style={{ fontSize: isMobile ? 13 : 16 }}>消息中心</Text>
+        <div style={{ display: 'flex', gap: 0 }}>
           {unreadCount > 0 && (
-            <Button size="small" type="text" onClick={handleMarkAllRead}>
-              全部已读
+            <Button size="small" type="text" onClick={handleMarkAllRead} style={{ fontSize: 11 }}>
+              已读
             </Button>
           )}
           {readCount > 0 && (
-            <Button size="small" type="text" icon={<ClearOutlined />} onClick={handleClearRead}>
-              清除已读
-            </Button>
+            <Button size="small" type="text" icon={<ClearOutlined />} onClick={handleClearRead} style={{ fontSize: 11 }} />
           )}
-          <Button size="small" type="text" icon={<ReloadOutlined />} loading={loading} onClick={fetchNotifications} />
+          <Button size="small" type="text" icon={<ReloadOutlined />} loading={loading} onClick={fetchNotifications} style={{ fontSize: 11 }} />
         </div>
       </div>
 
-      <Tabs
-        activeKey={activeTab}
-        onChange={setActiveTab}
-        size="small"
-        items={[
-          { key: 'all', label: '全部' },
-          { key: 'repair', label: '报修' },
-          { key: 'order', label: '商品' },
-          { key: 'property', label: '缴费' },
-          { key: 'visitor', label: '访客' },
-          { key: 'notice', label: '公告' },
-          { key: 'suggestion', label: '建议' },
-        ]}
-      />
+      {!isMobile && (
+        <Tabs
+          activeKey={activeTab}
+          onChange={setActiveTab}
+          size="small"
+          style={{ marginBottom: 8 }}
+          items={tabItems}
+        />
+      )}
+      {isMobile && (
+        <Tabs
+          activeKey={activeTab}
+          onChange={setActiveTab}
+          size="small"
+          tabBarStyle={{ marginBottom: 4, fontSize: 10 }}
+          tabBarGutter={2}
+          items={tabItems.map(t => ({ ...t, label: t.label }))}
+        />
+      )}
 
-      <div style={{ maxHeight: 340, overflowY: 'auto' }}>
+      <div style={{ maxHeight: isMobile ? 240 : 340, overflowY: 'auto' }}>
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 40 }}><Spin /></div>
+          <div style={{ textAlign: 'center', padding: isMobile ? 16 : 40 }}><Spin size="small" /></div>
         ) : filteredList.length === 0 ? (
-          <Empty description="暂无消息" image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ padding: '20px 0' }} />
+          <Empty description="暂无消息" image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ padding: isMobile ? '8px 0' : '20px 0' }} />
         ) : (
           <List
             dataSource={filteredList}
             renderItem={(item) => {
               const isRead = readIds.has(item.id);
+              const iconSize = isMobile ? 24 : 36;
               return (
                 <div
                   style={{
-                    padding: '12px 8px',
+                    padding: isMobile ? '6px 3px' : '12px 8px',
                     borderBottom: '1px solid #fafafa',
                     cursor: 'pointer',
-                    borderRadius: 8,
+                    borderRadius: 6,
                     transition: 'background 0.2s',
                     display: 'flex',
-                    gap: 12,
+                    gap: isMobile ? 6 : 12,
                     alignItems: 'flex-start',
                     opacity: isRead ? 0.65 : 1,
                   }}
@@ -295,31 +334,32 @@ export default function NotificationCenter() {
                   onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                 >
                   <div style={{
-                    width: 36, height: 36, borderRadius: 10,
+                    width: iconSize, height: iconSize, borderRadius: 6,
                     background: '#f5f5f5', display: 'flex',
                     alignItems: 'center', justifyContent: 'center',
-                    flexShrink: 0, marginTop: 2,
+                    flexShrink: 0, marginTop: 1,
+                    fontSize: isMobile ? 12 : 16,
                   }}>
                     {iconMap[item.icon] || <BellOutlined />}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Text strong={!isRead} style={{ fontSize: 13 }}>
+                      <Text strong={!isRead} style={{ fontSize: isMobile ? 11 : 13 }}>
                         <span style={{
-                          display: 'inline-block', width: 6, height: 6, borderRadius: '50%',
+                          display: 'inline-block', width: 5, height: 5, borderRadius: '50%',
                           background: isRead ? '#d9d9d9' : '#ff4d4f',
-                          marginRight: 6,
+                          marginRight: 4,
                         }} />
                         {item.title}
                       </Text>
                       {item.status && (
-                        <Text style={{ fontSize: 11, color: getStatusColor(item.status) }}>{item.status}</Text>
+                        <Text style={{ fontSize: 10, color: getStatusColor(item.status) }}>{item.status}</Text>
                       )}
                     </div>
-                    <Text style={{ fontSize: 12, color: '#666', lineHeight: 1.5 }} ellipsis={{ rows: 2 }}>
+                    <Text style={{ fontSize: 11, color: '#666', lineHeight: 1.3 }} ellipsis>
                       {item.content}
                     </Text>
-                    <Text style={{ fontSize: 11, color: '#bfbfbf' }}>{item.time}</Text>
+                    {item.time && <Text style={{ fontSize: 10, color: '#bfbfbf' }}>{item.time}</Text>}
                   </div>
                 </div>
               );
@@ -336,8 +376,10 @@ export default function NotificationCenter() {
       trigger="click"
       open={open}
       onOpenChange={setOpen}
-      placement="bottomRight"
-      overlayStyle={{ maxWidth: 440 }}
+      placement={isMobile ? 'bottom' : 'bottomRight'}
+      align={isMobile ? { offset: [0, 4] } : undefined}
+      overlayStyle={{ maxWidth: isMobile ? winW - 16 : 440, padding: 0 }}
+      overlayInnerStyle={{ padding: isMobile ? 8 : undefined }}
     >
       <Badge count={unreadCount} size="small" offset={[-2, 2]}>
         <BellOutlined
