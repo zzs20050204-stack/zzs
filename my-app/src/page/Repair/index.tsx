@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import {
   Table, Button, Input, Modal, Form, message,
-  Popconfirm, Card, Space, Tag, Typography, Tooltip, Upload, Image
+  Popconfirm, Card, Space, Tag, Typography, Tooltip, Upload, Image, Select
 } from 'antd';
-import { PlusOutlined, UploadOutlined } from '@ant-design/icons';
+import { PlusOutlined, UploadOutlined, SearchOutlined } from '@ant-design/icons';
 import { useSelector } from 'react-redux';
 import type { UploadFile } from 'antd/es/upload/interface';
 import http from '../../utils/http/http';
@@ -33,16 +33,19 @@ interface RootState {
 function RepairPage() {
   const [form] = Form.useForm();
   const [list, setList] = useState<Repair[]>([]);
+  const [originList, setOriginList] = useState<Repair[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [visible, setVisible] = useState<boolean>(false);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [currentName, setCurrentName] = useState<string>('');
+  const [searchContent, setSearchContent] = useState('');
+  const [searchStatus, setSearchStatus] = useState('');
 
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [previewOpen, setPreviewOpen] = useState<boolean>(false);
   const [previewImage, setPreviewImage] = useState<string>('');
 
-  const { auth } = useSelector((state: RootState) => state);
+  const auth = useSelector((state: RootState) => state.auth);
 
   // 获取用户信息
   useEffect(() => {
@@ -69,6 +72,7 @@ function RepairPage() {
       if (!isAdmin) {
         data = data.filter((item) => item.username === currentName);
       }
+      setOriginList(data);
       setList(data);
     } catch {
       message.error('列表加载失败');
@@ -80,6 +84,24 @@ function RepairPage() {
   useEffect(() => {
     getList();
   }, [currentName, isAdmin]);
+
+  // 搜索筛选
+  const handleSearch = () => {
+    let filtered = [...originList];
+    if (searchContent) {
+      filtered = filtered.filter(item => item.content.includes(searchContent) || item.username.includes(searchContent));
+    }
+    if (searchStatus) {
+      filtered = filtered.filter(item => item.status === searchStatus);
+    }
+    setList(filtered);
+  };
+
+  const handleReset = () => {
+    setSearchContent('');
+    setSearchStatus('');
+    setList(originList);
+  };
 
   // 图片压缩 - 【替换 new Image()，彻底解决 ts7009】
   const handleFileChange = ({ fileList: newFileList }: { fileList: UploadFile[] }) => {
@@ -225,6 +247,7 @@ function RepairPage() {
       title: '报修时间',
       dataIndex: 'createTime',
       align: 'center' as const,
+      render: (v: string) => v?.replace('T', ' '),
     },
     {
       title: '操作',
@@ -232,7 +255,7 @@ function RepairPage() {
       render: (_: unknown, record: Repair) => {
         const canDelete = isAdmin || record.username === currentName;
         return canDelete ? (
-          <Popconfirm title="确定删除这条报修？" onConfirm={() => handleDelete(record.id)}>
+          <Popconfirm title="确定删除这条报修？" okText="确定" cancelText="取消" onConfirm={() => handleDelete(record.id)}>
             <Button type="link" danger size="small">删除</Button>
           </Popconfirm>
         ) : null;
@@ -251,17 +274,39 @@ function RepairPage() {
         paddingBottom: 12
       }}>
         <Title level={4} style={{ margin: 0 }}>报修管理</Title>
-        <Button
-          icon={<PlusOutlined />}
-          type="primary"
-          onClick={() => {
-            form.setFieldsValue({ username: currentName, imgUrl: '' });
-            setFileList([]);
-            setVisible(true);
-          }}
-        >
-          我要报修
-        </Button>
+        <Space size="small">
+          <Input
+            placeholder="搜索内容/报修人"
+            value={searchContent}
+            onChange={e => setSearchContent(e.target.value)}
+            style={{ width: 200 }}
+            allowClear
+            prefix={<SearchOutlined />}
+          />
+          <Select
+            placeholder="状态"
+            value={searchStatus || undefined}
+            onChange={val => setSearchStatus(val || '')}
+            style={{ width: 120 }}
+            allowClear
+          >
+            <Select.Option value="待处理">待处理</Select.Option>
+            <Select.Option value="已处理">已处理</Select.Option>
+          </Select>
+          <Button onClick={handleSearch} type="primary">搜索</Button>
+          <Button onClick={handleReset}>重置</Button>
+          <Button
+            icon={<PlusOutlined />}
+            type="primary"
+            onClick={() => {
+              form.setFieldsValue({ username: currentName, imgUrl: '' });
+              setFileList([]);
+              setVisible(true);
+            }}
+          >
+            我要报修
+          </Button>
+        </Space>
       </div>
 
       <Card
@@ -284,7 +329,8 @@ function RepairPage() {
         width={500}
         onCancel={() => setVisible(false)}
         onOk={handleSave}
-        destroyOnHidden
+        okText="确定" cancelText="取消"
+        destroyOnClose
       >
         <Form form={form} layout="vertical">
           <Form.Item name="username" label="姓名">

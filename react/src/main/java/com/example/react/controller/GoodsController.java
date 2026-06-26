@@ -7,13 +7,16 @@ import com.example.react.mapper.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.File;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/goods")
@@ -69,9 +72,30 @@ public class GoodsController {
 
     @PostMapping("/cart/add")
     public Result addCart(@RequestBody Cart cart) {
+        // 同一用户同一商品，存在则数量+1，否则新增
+        QueryWrapper<Cart> wrapper = new QueryWrapper<>();
+        wrapper.eq("user_id", cart.getUserId()).eq("goods_id", cart.getGoodsId());
+        Cart existCart = cartMapper.selectOne(wrapper);
+        if (existCart != null) {
+            existCart.setNum(existCart.getNum() + (cart.getNum() != null ? cart.getNum() : 1));
+            cartMapper.updateById(existCart);
+            return Result.success("购物车数量已更新");
+        }
+        if (cart.getNum() == null || cart.getNum() <= 0) {
+            cart.setNum(1);
+        }
         cart.setCreateTime(LocalDateTime.now());
         cartMapper.insert(cart);
         return Result.success("加入购物车成功");
+    }
+
+    @PutMapping("/cart/update")
+    public Result updateCart(@RequestBody Cart cart) {
+        Cart existCart = cartMapper.selectById(cart.getId());
+        if (existCart == null) return Result.error("购物车记录不存在");
+        existCart.setNum(cart.getNum());
+        cartMapper.updateById(existCart);
+        return Result.success("数量更新成功");
     }
 
     @DeleteMapping("/cart/delete")
@@ -332,5 +356,27 @@ public class GoodsController {
     public Result deleteComment(@RequestParam Integer id) {
         commentMapper.deleteById(id);
         return Result.success("删除成功");
+    }
+
+    // 商品图片上传
+    @PostMapping("/uploadImage")
+    public Result<String> uploadImage(@RequestParam("file") MultipartFile file) {
+        try {
+            String uploadPath = System.getProperty("user.dir") + "/goods-images/";
+            File dir = new File(uploadPath);
+            if (!dir.exists()) dir.mkdirs();
+
+            String originalName = file.getOriginalFilename();
+            String ext = originalName != null && originalName.contains(".")
+                    ? originalName.substring(originalName.lastIndexOf("."))
+                    : ".png";
+            String filename = UUID.randomUUID() + ext;
+            File dest = new File(uploadPath + filename);
+            file.transferTo(dest);
+
+            return Result.success("/goods-images/" + filename);
+        } catch (Exception e) {
+            return Result.error("图片上传失败");
+        }
     }
 }

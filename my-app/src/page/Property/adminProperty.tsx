@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Card, Form, Input, Button, message, Select, Table, Space, DatePicker, Modal } from 'antd';
+import { Card, Form, Input, Button, message, Select, Table, Space, DatePicker, Modal, Empty } from 'antd';
 import http from '../../utils/http/http';
 import dayjs from 'dayjs';
 
@@ -18,6 +18,7 @@ interface BillItem {
 export default function AdminProperty() {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const [addLoading, setAddLoading] = useState(false);
   const [list, setList] = useState<BillItem[]>([]);
   const [originList, setOriginList] = useState<BillItem[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
@@ -69,6 +70,7 @@ export default function AdminProperty() {
 
   // 新增账单提交
   const handleAdd = async () => {
+    setAddLoading(true);
     try {
       const values = await form.validateFields();
       const data = {
@@ -85,10 +87,12 @@ export default function AdminProperty() {
         form.resetFields();
         loadList();
       } else {
-        message.error(res.data.msg);
+        message.error(res.data.msg || '下发失败');
       }
     } catch {
       message.error('下发失败');
+    } finally {
+      setAddLoading(false);
     }
   };
 
@@ -139,14 +143,16 @@ export default function AdminProperty() {
       >
         <Table
           rowKey="id"
+          loading={loading}
           dataSource={list}
           pagination={{ pageSize: 10 }}
+          locale={{ emptyText: <Empty description="暂无缴费单" /> }}
           columns={[
             { title: '用户ID', dataIndex: 'userId' },
             { title: '类型', dataIndex: 'payType' },
-            { title: '金额', dataIndex: 'money' },
+            { title: '金额', dataIndex: 'money', render: (v: string) => `¥${v}` },
             { title: '状态', dataIndex: 'status' },
-            { title: '截止时间', dataIndex: 'deadline' },
+            { title: '截止时间', dataIndex: 'deadline', render: (v: string) => v?.replace('T', ' ') },
             { title: '备注', dataIndex: 'remark' },
           ]}
         />
@@ -158,6 +164,8 @@ export default function AdminProperty() {
         open={modalVisible}
         onCancel={() => setModalVisible(false)}
         onOk={handleAdd}
+        okText="确定" cancelText="取消"
+        confirmLoading={addLoading}
         maskClosable={false}
       >
         <Form form={form} layout="vertical">
@@ -183,7 +191,7 @@ export default function AdminProperty() {
           </Form.Item>
 
           <Form.Item name="deadline" label="截止时间" rules={[{ required: true }]}>
-            <DatePicker showTime style={{ width: '100%' }} />
+            <DatePicker showTime style={{ width: '100%' }} format="YYYY-MM-DD HH:mm:ss" />
           </Form.Item>
 
           <Form.Item name="remark" label="备注">

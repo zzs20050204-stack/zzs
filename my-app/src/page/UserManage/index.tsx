@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import {
   Table, Button, Card, Popconfirm, message,
-  Space, Tag, Typography, Empty
+  Space, Tag, Typography, Empty, Input, Select
 } from 'antd';
 import {
-  DeleteOutlined, UserOutlined, ReloadOutlined
+  DeleteOutlined, UserOutlined, ReloadOutlined, SearchOutlined
 } from '@ant-design/icons';
 import type { ColumnType } from 'antd/es/table';
 import http from '../../utils/http/http';
@@ -23,7 +23,10 @@ interface User {
 
 function UserManage() {
   const [list, setList] = useState<User[]>([]);
+  const [originList, setOriginList] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
+  const [searchName, setSearchName] = useState('');
+  const [searchRole, setSearchRole] = useState('');
 
   // 获取用户列表
   const getList = async () => {
@@ -31,13 +34,32 @@ function UserManage() {
     try {
       const res = await http.get('/user/list');
       if (res.data.code === 200) {
-        setList(res.data.data || []);
+        const data = res.data.data || [];
+        setOriginList(data);
+        setList(data);
       }
     } catch (e) {
       message.error('用户列表加载失败');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSearch = () => {
+    let filtered = [...originList];
+    if (searchName) {
+      filtered = filtered.filter(item => item.username.includes(searchName) || item.phone.includes(searchName));
+    }
+    if (searchRole) {
+      filtered = filtered.filter(item => item.role === searchRole);
+    }
+    setList(filtered);
+  };
+
+  const handleReset = () => {
+    setSearchName('');
+    setSearchRole('');
+    setList(originList);
   };
 
   // 删除用户
@@ -133,9 +155,9 @@ function UserManage() {
     <div style={{ padding: '24px', background: '#f5f7fa', minHeight: '100vh' }}>
       {/* 顶部标题卡片 */}
       <Card
-        bordered={false}
+        variant="borderless"
         style={{ marginBottom: 20, borderRadius: 12 }}
-        bodyStyle={{ padding: '16px 24px' }}
+        styles={{ body: { padding: '16px 24px' } }}
       >
         <div
           style={{
@@ -161,13 +183,35 @@ function UserManage() {
             刷新列表
           </Button>
         </div>
+        <Space style={{ marginTop: 12 }}>
+          <Input
+            placeholder="搜索用户名/手机号"
+            value={searchName}
+            onChange={e => setSearchName(e.target.value)}
+            style={{ width: 200 }}
+            allowClear
+            prefix={<SearchOutlined />}
+          />
+          <Select
+            placeholder="角色"
+            value={searchRole || undefined}
+            onChange={val => setSearchRole(val || '')}
+            style={{ width: 120 }}
+            allowClear
+          >
+            <Select.Option value="管理员">管理员</Select.Option>
+            <Select.Option value="普通用户">普通用户</Select.Option>
+          </Select>
+          <Button onClick={handleSearch} type="primary">搜索</Button>
+          <Button onClick={handleReset}>重置</Button>
+        </Space>
       </Card>
 
       {/* 表格内容卡片 */}
       <Card
-        bordered={false}
+        variant="borderless"
         style={{ borderRadius: 12 }}
-        bodyStyle={{ padding: '20px 24px' }}
+        styles={{ body: { padding: '20px 24px' } }}
       >
         <Table
           rowKey="id"

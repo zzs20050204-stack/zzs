@@ -1,16 +1,20 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Card, Button, message, Typography, Row, Col, Empty, Space, Modal,
-  Avatar, Tag, Spin, Form, Input, Checkbox, Upload, List, Radio
+  Avatar, Tag, Spin, Form, Input, Checkbox, Upload, List, Radio, Popconfirm
 } from 'antd';
 import {
   ShoppingCartOutlined, OrderedListOutlined, NotificationOutlined,
   UserOutlined, EditOutlined, WarningOutlined,
-  PayCircleOutlined, MessageOutlined, PlusOutlined, DeleteOutlined
+  PayCircleOutlined, MessageOutlined, PlusOutlined, MinusOutlined, DeleteOutlined, BarChartOutlined
 } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
 import http from '../../utils/http/http';
+import { BASE_URL } from '../../utils/constants';
+import { setMenuKey } from '../../utils/menuSlice';
 
-const { Title, Text } = Typography;
+const { Title, Text, Paragraph } = Typography;
 
 interface UserInfo {
   id: number;
@@ -112,6 +116,8 @@ const orderStatusMap: Record<string, { color: string }> = {
 };
 
 const MyPage = () => {
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
   const [user, setUser] = useState<UserInfo | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [allGoods, setAllGoods] = useState<GoodsItem[]>([]);
@@ -147,7 +153,7 @@ const MyPage = () => {
       const res = await http.get('/goods/list');
       setAllGoods(res.data.data || []);
     } catch (err) {
-      console.log('加载商品失败', err);
+      console.error('加载商品失败', err);
     }
   }, []);
 
@@ -306,6 +312,20 @@ const MyPage = () => {
     }
   };
 
+  // 购物车数量增减
+  const updateCartNum = async (id: number, num: number) => {
+    if (num <= 0) {
+      delCart(id);
+      return;
+    }
+    try {
+      await http.put('/goods/cart/update', { id, num });
+      setCartList(prev => prev.map(item => item.id === id ? { ...item, num } : item));
+    } catch {
+      message.error('更新失败');
+    }
+  };
+
   // ========== 下单自动传 addressId ==========
   const batchCheckout = async () => {
     if (selectedCartIds.length === 0) {
@@ -455,13 +475,18 @@ const MyPage = () => {
     }
   }, [user]);
 
-  const handleTabChange = (key: string) => {
+    const handleTabChange = (key: string) => {
+    if (key === 'dashboard') {
+      dispatch(setMenuKey({ key: '/dashboard', title: '数据看板' }));
+      navigate('/');
+      return;
+    }
     setActiveTab(key);
     setExpandOrderId(null);
   };
 
   const avatarUrl = user?.avatar
-    ? `http://localhost:8080${user.avatar}?t=${Date.now()}`
+    ? `${BASE_URL}${user.avatar}?t=${Date.now()}`
     : null;
 
   const serviceCards = [
@@ -471,6 +496,7 @@ const MyPage = () => {
     { key: 'repair', icon: <WarningOutlined style={{ fontSize: 32, color: '#ff4d4f' }} />, title: '报修记录', count: repairList.length, bg: '#fff2f0' },
     { key: 'property', icon: <PayCircleOutlined style={{ fontSize: 32, color: '#722ed1' }} />, title: '物业缴费', count: propertyList.length, bg: '#f9f0ff' },
     { key: 'suggestion', icon: <MessageOutlined style={{ fontSize: 32, color: '#13c2c2' }} />, title: '建议反馈', count: suggestionList.length, bg: '#e6fffb' },
+    { key: 'dashboard', icon: <BarChartOutlined style={{ fontSize: 32, color: '#eb2f96' }} />, title: '数据看板', count: null, bg: '#fff0f6' },
   ];
 
   const tabList = [
@@ -527,7 +553,7 @@ const MyPage = () => {
             >
               {card.icon}
               <div style={{ marginTop: 8 }}>{card.title}</div>
-              <div style={{ fontSize: 20, marginTop: 4 }}>{card.count}</div>
+              <div style={{ fontSize: 20, marginTop: 4 }}>{card.count !== null ? card.count : ''}</div>
             </Card>
           </Col>
         ))}
@@ -537,115 +563,105 @@ const MyPage = () => {
         <Spin spinning={loading}>
           {activeTab === 'cart' && (
             cartList.length === 0 ? (
-              <Empty style={{ padding: 60 }} />
+              <Empty style={{ padding: 60 }} description="购物车空空如也，去商城逛逛吧" />
             ) : (
               <>
                 {/* 地址选择 */}
-                <div style={{ marginBottom: 16, padding: 12, background: '#f7f8fa' }}>
-                  <Text strong>选择收货地址：</Text>
+                <div style={{ marginBottom: 20, padding: '16px 20px', background: '#f9fafb', borderRadius: 12, border: '1px solid #f0f0f0' }}>
+                  <Text strong style={{ fontSize: 14, color: '#1a1a2e' }}>收货地址</Text>
                   {addressList.length === 0 ? (
-                    <div style={{ marginTop: 8 }}>
-                      <Button type="link" onClick={() => {
-                        setAddressModalVisible(true);
-                      }}>请添加收货地址</Button>
+                    <div style={{ marginTop: 10 }}>
+                      <Button type="link" onClick={() => { setAddressModalVisible(true); setCurrentAddress(null); addressForm.resetFields(); }} icon={<PlusOutlined />}>添加收货地址</Button>
                     </div>
                   ) : (
-                    <Radio.Group
-                      value={selectedAddressId}
-                      onChange={(e) => setSelectedAddressId(e.target.value)}
-                      style={{ marginTop: 8, display: 'block' }}
-                    >
-                      {addressList.map(a => (
-                        <Radio value={a.id} key={a.id} style={{ display: 'block', marginBottom: 4 }}>
-                          {a.receiverName} {a.receiverPhone} {a.receiverAddress}
-                          {a.isDefault === 1 && <Tag color="blue" style={{ marginLeft: 8 }}>默认</Tag>}
-                        </Radio>
-                      ))}
+                    <Radio.Group value={selectedAddressId} onChange={(e) => setSelectedAddressId(e.target.value)} style={{ marginTop: 10, width: '100%' }}>
+                      <Row gutter={[12, 8]}>
+                        {addressList.map(a => (
+                          <Col span={12} key={a.id}>
+                            <Radio value={a.id} style={{ display: 'flex', alignItems: 'flex-start' }}>
+                              <div style={{ marginLeft: 4 }}>
+                                <Text strong>{a.receiverName}</Text>
+                                <Text type="secondary" style={{ marginLeft: 8 }}>{a.receiverPhone}</Text>
+                                {a.isDefault === 1 && <Tag color="blue" style={{ marginLeft: 8, fontSize: 10, lineHeight: '18px' }}>默认</Tag>}
+                                <br />
+                                <Text type="secondary" style={{ fontSize: 12 }}>{a.receiverAddress}</Text>
+                              </div>
+                            </Radio>
+                          </Col>
+                        ))}
+                      </Row>
                     </Radio.Group>
                   )}
                 </div>
 
-                <Row justify="space-between" align="middle" style={{ marginBottom: 16, padding: 8, background: '#fafafa' }}>
-                  <Col>
+                {/* 底部结算栏 */}
+                <div style={{
+                  marginBottom: 20, padding: '12px 20px',
+                  background: 'linear-gradient(135deg, #fff5f5 0%, #fff0f0 100%)',
+                  borderRadius: 12, border: '1px solid #ffe0e0',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                }}>
+                  <div>
                     <Checkbox
                       checked={selectedCartIds.length === cartList.length && cartList.length > 0}
+                      indeterminate={selectedCartIds.length > 0 && selectedCartIds.length < cartList.length}
                       onChange={(e) => toggleSelectAll(e.target.checked)}
                     >全选</Checkbox>
-                    <Text style={{ marginLeft: 16 }}>已选 {selectedCartIds.length} 件 合计：¥{totalAmount}</Text>
-                  </Col>
-                  <Col>
-                    <Button type="primary" loading={paying} disabled={selectedCartIds.length === 0 || !selectedAddressId} onClick={batchCheckout}>
-                      去支付
-                    </Button>
-                  </Col>
-                </Row>
+                    <Text style={{ marginLeft: 16, fontSize: 14 }}>
+                      已选 <Text strong style={{ color: '#ff4d4f', fontSize: 16 }}>{selectedCartIds.length}</Text> 件
+                    </Text>
+                    <span style={{ fontSize: 14, marginLeft: 24 }}>
+                      合计：<span style={{ color: '#ff4d4f', fontSize: 22, fontWeight: 700 }}>¥{totalAmount.toFixed(2)}</span>
+                    </span>
+                  </div>
+                  <Button type="primary" size="large" loading={paying} disabled={selectedCartIds.length === 0 || !selectedAddressId} onClick={batchCheckout}
+                    style={{ borderRadius: 8, height: 42, padding: '0 32px', fontSize: 15 }}>
+                    去结算
+                  </Button>
+                </div>
 
-                {cartList.map(item => (
-                  <Card key={item.id} variant="outlined" size="small" style={{ marginBottom: 12 }}>
-                    <Row justify="space-between" align="middle">
-                      <Col flex="auto">
-                        <Space>
-                          <Checkbox checked={selectedCartIds.includes(item.id)} onChange={(e) => toggleCartSelect(item.id, e.target.checked)} />
-                          <div>
-                            <Text strong>{item.name}</Text><br />
-
-                            <Text type="secondary">规格：{item.spec || '默认'} 数量：{item.num} 单价：¥{item.price}</Text>
-                          </div>
-                        </Space>
-                      </Col>
-                      <Col>
-                        <Button danger size="small" onClick={() => delCart(item.id)}>删除</Button>
-                      </Col>
-                    </Row>
-                  </Card>
-                ))}
-              </>
-            )
-          )}
-
-          {activeTab === 'order' && (
-            orderList.length === 0 ? (
-              <Empty style={{ padding: 60 }} />
-            ) : (
-              <>
-                {orderList.map(item => {
-                  const st = orderStatusMap[item.status] || { color: 'default' };
-                  const isExpand = expandOrderId === item.id;
-                  const details = item.details || [];
-                  const realTotalPrice = details.reduce((sum, g) => sum + (g.goodsPrice * g.num), 0);
-
+                {/* 购物车列表 */}
+                {cartList.map(item => {
+                  const itemTotal = (item.price || 0) * item.num;
                   return (
-                    <Card key={item.id} variant="outlined" size="small" style={{ marginBottom: 12 }}>
-                      <Row justify="space-between" align="middle">
+                    <Card
+                      key={item.id}
+                      variant="outlined"
+                      style={{ marginBottom: 12, borderRadius: 12, border: selectedCartIds.includes(item.id) ? '1px solid #ff4d4f' : '1px solid #f0f0f0' }}
+                    >
+                      <Row align="middle" gutter={16}>
+                        <Col flex="32px">
+                          <Checkbox checked={selectedCartIds.includes(item.id)} onChange={(e) => toggleCartSelect(item.id, e.target.checked)} />
+                        </Col>
                         <Col flex="auto">
-                          <Text strong>订单号：{item.orderNo}</Text><br />
-                          <Text type="secondary">总价：¥{realTotalPrice} 时间：{item.createTime}</Text><br />
-                          <Tag color={st.color}>{item.status}</Tag>
-                          <Button type="link" size="small" onClick={() => toggleOrderDetail(item.id)}>
-                            {isExpand ? '收起明细' : '查看商品明细'}
-                          </Button>
+                          <div>
+                            <Text strong style={{ fontSize: 15 }}>{item.name}</Text>
+                            <Text type="secondary" style={{ marginLeft: 12, fontSize: 12 }}>{item.spec || '默认规格'}</Text>
+                          </div>
                         </Col>
                         <Col>
-                          <Space wrap>
-                            {item.status === '待支付' && <Button size="small" type="primary" onClick={() => handlePay(item.id)}>支付</Button>}
-                            {item.status === '已发货' && <Button size="small" onClick={() => handleReceiveGoods(item.id)}>确认收货</Button>}
-                            {(item.status === '已支付' || item.status === '已发货') && <Button size="small" danger onClick={() => handleApplyRefund(item.id)}>退款</Button>}
-                            <Button size="small" danger onClick={() => deleteOrder(item.id)}>删除</Button>
+                          <Text style={{ fontSize: 16, fontWeight: 600, color: '#ff4d4f' }}>¥{item.price}</Text>
+                        </Col>
+                        <Col>
+                          <Space size={4}>
+                            <Button size="small" icon={<MinusOutlined />} onClick={() => updateCartNum(item.id, item.num! - 1)}
+                              style={{ borderRadius: 6, width: 28, height: 28 }} />
+                            <span style={{ display: 'inline-block', minWidth: 32, textAlign: 'center', fontWeight: 600, fontSize: 15 }}>
+                              {item.num}
+                            </span>
+                            <Button size="small" icon={<PlusOutlined />} onClick={() => updateCartNum(item.id, item.num! + 1)}
+                              style={{ borderRadius: 6, width: 28, height: 28 }} />
                           </Space>
                         </Col>
+                        <Col>
+                          <Text strong style={{ fontSize: 15, color: '#ff4d4f' }}>¥{itemTotal.toFixed(2)}</Text>
+                        </Col>
+                        <Col>
+                          <Popconfirm title="确定移除此商品？" okText="确定" cancelText="取消" onConfirm={() => delCart(item.id)}>
+                            <Button type="text" danger size="small" icon={<DeleteOutlined />} />
+                          </Popconfirm>
+                        </Col>
                       </Row>
-
-                      {isExpand && (
-                        <div style={{ padding: 10 }}>
-                          <Text strong>订单商品：</Text>
-                          {details.map(g => (
-                            <Card key={g.id} variant="outlined" size="small" style={{ marginTop: 8, background: '#fafafa' }}>
-                              <Text>{g.goodsName}</Text><br />
-                              <Text type="secondary">单价：¥{g.goodsPrice} 数量：{g.num} 规格：{g.spec || '默认'}</Text>
-                            </Card>
-                          ))}
-                        </div>
-                      )}
                     </Card>
                   );
                 })}
@@ -653,79 +669,289 @@ const MyPage = () => {
             )
           )}
 
+          {activeTab === 'order' && (
+            orderList.length === 0 ? (
+              <Empty style={{ padding: 60 }} description="还没有订单，去商城下单吧" />
+            ) : (
+              <div>
+                {orderList.map(item => {
+                  const st = orderStatusMap[item.status] || { color: 'default' };
+                  const isExpand = expandOrderId === item.id;
+                  const details = item.details || [];
+                  const realTotalPrice = details.length > 0
+                    ? details.reduce((sum, g) => sum + (g.goodsPrice * g.num), 0)
+                    : item.totalPrice;
+
+                  return (
+                    <Card
+                      key={item.id}
+                      variant="outlined"
+                      style={{ marginBottom: 16, borderRadius: 12, border: '1px solid #f0f0f0' }}
+                    >
+                      {/* 订单头部 */}
+                      <div style={{
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                        paddingBottom: 12, marginBottom: 12,
+                        borderBottom: '1px dashed #f0f0f0'
+                      }}>
+                        <Space size={16}>
+                          <Text strong style={{ fontSize: 14, color: '#333' }}>
+                            订单号：{item.orderNo}
+                          </Text>
+                          <Tag color={st.color} style={{ borderRadius: 6, fontSize: 12 }}>{item.status}</Tag>
+                        </Space>
+                        <Text type="secondary" style={{ fontSize: 12 }}>{item.createTime?.replace?.('T', ' ')}</Text>
+                      </div>
+
+                      {/* 订单商品明细 */}
+                      <div style={{ marginBottom: 12 }}>
+                        {details.length > 0 ? (
+                          isExpand ? (
+                            details.map(g => (
+                              <div key={g.id} style={{
+                                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                padding: '10px 14px', marginBottom: 8,
+                                background: '#f9fafb', borderRadius: 10
+                              }}>
+                                <Space size={12}>
+                                  <div style={{
+                                    width: 48, height: 48, borderRadius: 8,
+                                    background: '#e8e8e8', display: 'flex',
+                                    alignItems: 'center', justifyContent: 'center'
+                                  }}>
+                                    <ShoppingCartOutlined style={{ color: '#999' }} />
+                                  </div>
+                                  <div>
+                                    <Text strong style={{ fontSize: 14 }}>{g.goodsName}</Text><br />
+                                    <Text type="secondary" style={{ fontSize: 12 }}>
+                                      {g.spec || '默认'} × {g.num}
+                                    </Text>
+                                  </div>
+                                </Space>
+                                <Text strong style={{ fontSize: 14, color: '#ff4d4f' }}>
+                                  ¥{(g.goodsPrice * g.num).toFixed(2)}
+                                </Text>
+                              </div>
+                            ))
+                          ) : (
+                            <div style={{
+                              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                              padding: '10px 14px', background: '#f9fafb', borderRadius: 10
+                            }}>
+                              <Space size={12}>
+                                <div style={{
+                                  width: 48, height: 48, borderRadius: 8,
+                                  background: '#e8e8e8', display: 'flex',
+                                  alignItems: 'center', justifyContent: 'center'
+                                }}>
+                                  <ShoppingCartOutlined style={{ color: '#999' }} />
+                                </div>
+                                <div>
+                                  <Text strong style={{ fontSize: 14 }}>{details[0].goodsName}</Text>
+                                  {details.length > 1 && (
+                                    <Text type="secondary" style={{ fontSize: 12, marginLeft: 6 }}>
+                                      等 {details.length} 件商品
+                                    </Text>
+                                  )}
+                                </div>
+                              </Space>
+                              <Text strong style={{ fontSize: 14, color: '#ff4d4f' }}>
+                                ¥{realTotalPrice.toFixed(2)}
+                              </Text>
+                            </div>
+                          )
+                        ) : (
+                          <Text type="secondary">商品信息加载中...</Text>
+                        )}
+                      </div>
+
+                      {/* 底部：展开 + 操作 */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          {details.length > 1 && (
+                            <Button type="link" size="small" style={{ padding: 0, fontSize: 12 }} onClick={() => toggleOrderDetail(item.id)}>
+                              {isExpand ? '收起商品明细 ▲' : '查看全部明细 ▼'}
+                            </Button>
+                          )}
+                        </div>
+                        <Space size={8}>
+                          {item.status === '待支付' && <Button size="small" type="primary" style={{ borderRadius: 6 }} onClick={() => handlePay(item.id)}>立即支付</Button>}
+                          {item.status === '已发货' && <Button size="small" style={{ borderRadius: 6, color: '#52c41a', borderColor: '#52c41a' }} onClick={() => handleReceiveGoods(item.id)}>确认收货</Button>}
+                          {(item.status === '已支付' || item.status === '已发货') && <Button size="small" danger style={{ borderRadius: 6 }} onClick={() => handleApplyRefund(item.id)}>申请退款</Button>}
+                          <Popconfirm title="确定删除此订单？" okText="确定" cancelText="取消" onConfirm={() => deleteOrder(item.id)}>
+                            <Button size="small" type="text" danger icon={<DeleteOutlined />} />
+                          </Popconfirm>
+                        </Space>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            )
+          )}
+
           {activeTab === 'notice' && (
             noticeList.length === 0 ? (
-              <Empty style={{ padding: 60 }} />
+              <Empty style={{ padding: 60 }} description="你还没有发布过公告" />
             ) : (
-              <>
-                {noticeList.map(item => (
-                  <Card key={item.id} variant="outlined" size="small" style={{ marginBottom: 12 }}>
-                    <Row justify="space-between">
-                      <Col flex="auto">
-                        <Text strong>{item.title}</Text><br />
-                        <Text>{item.content.replace('||ANON||', '')}</Text><br />
-                        <Text type="secondary">{item.createTime}</Text>
-                      </Col>
-                      <Col><Button danger size="small" onClick={() => deleteNotice(item.id)}>删除</Button></Col>
-                    </Row>
+              <div>
+                {noticeList.map((item, idx) => (
+                  <Card
+                    key={item.id}
+                    variant="outlined"
+                    style={{ marginBottom: 14, borderRadius: 12, border: '1px solid #f0f0f0', overflow: 'hidden' }}
+                    styles={{ body: { padding: 0 } }}
+                  >
+                    <div style={{ display: 'flex' }}>
+                      <div style={{
+                        width: 4, minHeight: '100%',
+                        background: `linear-gradient(180deg, #${['55c4ae', '5b8def', 'f0a05d', 'eb6f92'][idx % 4]} 0%, transparent 100%)`,
+                      }} />
+                      <div style={{ flex: 1, padding: '18px 20px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <div style={{ flex: 1 }}>
+                            <Text strong style={{ fontSize: 15, color: '#1a1a2e' }}>{item.title}</Text>
+                            <Paragraph
+                              ellipsis={{ rows: 3 }}
+                              style={{ margin: '8px 0 0', color: '#666', fontSize: 13, lineHeight: 1.7 }}
+                            >
+                              {item.content.replace('||ANON||', '')}
+                            </Paragraph>
+                          </div>
+                          <Popconfirm title="确定删除此公告？" okText="确定" cancelText="取消" onConfirm={() => deleteNotice(item.id)}>
+                            <Button type="text" danger size="small" icon={<DeleteOutlined />} style={{ flexShrink: 0, marginLeft: 12 }} />
+                          </Popconfirm>
+                        </div>
+                        <Text type="secondary" style={{ fontSize: 12, marginTop: 12, display: 'block' }}>
+                          {item.createTime?.replace('T', ' ')}
+                        </Text>
+                      </div>
+                    </div>
                   </Card>
                 ))}
-              </>
+              </div>
             )
           )}
 
           {activeTab === 'repair' && (
             repairList.length === 0 ? (
-              <Empty style={{ padding: 60 }} />
+              <Empty style={{ padding: 60 }} description="还没有报修记录" />
             ) : (
-              <>
+              <div>
                 {repairList.map(item => (
-                  <Card key={item.id} variant="outlined" size="small" style={{ marginBottom: 12 }}>
-                    <Text strong>{item.content}</Text><br />
-                    <Text type="secondary">地址：{item.address} 电话：{item.phone}</Text><br />
-                    <Tag color={item.status === '已处理' ? 'green' : 'orange'}>{item.status}</Tag>
+                  <Card
+                    key={item.id}
+                    variant="outlined"
+                    style={{ marginBottom: 14, borderRadius: 12, border: '1px solid #f0f0f0', overflow: 'hidden' }}
+                    styles={{ body: { padding: 0 } }}
+                  >
+                    <div style={{ display: 'flex' }}>
+                      <div style={{
+                        width: 4, minHeight: '100%',
+                        background: item.status === '已处理' ? 'linear-gradient(180deg, #52c41a, transparent)' : 'linear-gradient(180deg, #faad14, transparent)',
+                      }} />
+                      <div style={{ flex: 1, padding: '18px 20px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <div style={{ flex: 1 }}>
+                            <Space size={8}>
+                              <WarningOutlined style={{ color: item.status === '已处理' ? '#52c41a' : '#faad14', fontSize: 16 }} />
+                              <Text strong style={{ fontSize: 15 }}>{item.content}</Text>
+                            </Space>
+                          </div>
+                          <Tag color={item.status === '已处理' ? 'green' : 'orange'} style={{ borderRadius: 6 }}>{item.status}</Tag>
+                        </div>
+                        <div style={{ marginTop: 10, padding: '10px 14px', background: '#f9fafb', borderRadius: 8 }}>
+                          <Space size={20}>
+                            <span><Text type="secondary" style={{ fontSize: 12 }}>地址</Text> <Text style={{ fontSize: 13 }}>{item.address}</Text></span>
+                            <span><Text type="secondary" style={{ fontSize: 12 }}>电话</Text> <Text style={{ fontSize: 13 }}>{item.phone}</Text></span>
+                          </Space>
+                        </div>
+                        <Text type="secondary" style={{ fontSize: 12, marginTop: 10, display: 'block' }}>
+                          {item.createTime?.replace('T', ' ')}
+                        </Text>
+                      </div>
+                    </div>
                   </Card>
                 ))}
-              </>
+              </div>
             )
           )}
 
           {activeTab === 'property' && (
             propertyList.length === 0 ? (
-              <Empty style={{ padding: 60 }} />
+              <Empty style={{ padding: 60 }} description="暂无物业缴费单" />
             ) : (
-              <>
+              <div>
                 {propertyList.map(item => (
-                  <Card key={item.id} variant="outlined" size="small" style={{ marginBottom: 12 }}>
-                    <Row justify="space-between">
-                      <Col flex="auto">
-                        <Text strong>{item.payType}</Text><br />
-                        <Text type="secondary">截止：{item.deadline}</Text><br />
-                        <Tag color={item.status === '已缴费' ? 'green' : 'orange'}>{item.status}</Tag>
-                      </Col>
-                      <Col>
-                        <Text strong>¥{item.money}</Text><br />
-                        {item.status === '待缴费' && <Button size="small" type="primary" onClick={() => handlePayBill(item.id)}>缴费</Button>}
-                      </Col>
-                    </Row>
+                  <Card
+                    key={item.id}
+                    variant="outlined"
+                    style={{ marginBottom: 14, borderRadius: 12, border: '1px solid #f0f0f0', overflow: 'hidden' }}
+                    styles={{ body: { padding: 0 } }}
+                  >
+                    <div style={{ display: 'flex' }}>
+                      <div style={{
+                        width: 4, minHeight: '100%',
+                        background: item.status === '已缴费' ? 'linear-gradient(180deg, #52c41a, transparent)' : 'linear-gradient(180deg, #faad14, transparent)',
+                      }} />
+                      <div style={{ flex: 1, padding: '18px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <Space size={8}>
+                            <PayCircleOutlined style={{ color: '#722ed1', fontSize: 18 }} />
+                            <Text strong style={{ fontSize: 15 }}>{item.payType}</Text>
+                            <Tag color={item.status === '已缴费' ? 'green' : 'orange'} style={{ borderRadius: 6 }}>{item.status}</Tag>
+                          </Space>
+                          <div style={{ marginTop: 8 }}>
+                            <Text type="secondary" style={{ fontSize: 12 }}>截止日期：{item.deadline?.replace('T', ' ')}</Text>
+                          </div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ color: '#ff4d4f', fontSize: 22, fontWeight: 700 }}>¥{item.money}</div>
+                          {item.status === '待缴费' && (
+                            <Button type="primary" size="small" style={{ borderRadius: 6, marginTop: 6 }} onClick={() => handlePayBill(item.id)}>立即缴费</Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </Card>
                 ))}
-              </>
+              </div>
             )
           )}
 
           {activeTab === 'suggestion' && (
             suggestionList.length === 0 ? (
-              <Empty style={{ padding: 60 }} />
+              <Empty style={{ padding: 60 }} description="还没有提交过建议" />
             ) : (
-              <>
-                {suggestionList.map(item => (
-                  <Card key={item.id} variant="outlined" size="small" style={{ marginBottom: 12 }}>
-                    <Text>{item.content}</Text><br />
-                    <Tag color={item.status === '已处理' ? 'green' : 'orange'}>{item.status}</Tag>
+              <div>
+                {suggestionList.map((item, idx) => (
+                  <Card
+                    key={item.id}
+                    variant="outlined"
+                    style={{ marginBottom: 14, borderRadius: 12, border: '1px solid #f0f0f0', overflow: 'hidden' }}
+                    styles={{ body: { padding: 0 } }}
+                  >
+                    <div style={{ display: 'flex' }}>
+                      <div style={{
+                        width: 4, minHeight: '100%',
+                        background: `linear-gradient(180deg, #${['13c2c2', '1890ff', '722ed1', 'eb2f96'][idx % 4]} 0%, transparent 100%)`,
+                      }} />
+                      <div style={{ flex: 1, padding: '18px 20px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <Space size={8}>
+                            <MessageOutlined style={{ color: '#13c2c2', fontSize: 16 }} />
+                            <Text style={{ fontSize: 14, color: '#333', lineHeight: 1.6 }}>{item.content}</Text>
+                          </Space>
+                          <Tag color={item.status === '已处理' ? 'green' : 'orange'} style={{ borderRadius: 6, flexShrink: 0, marginLeft: 12 }}>{item.status}</Tag>
+                        </div>
+                        <Text type="secondary" style={{ fontSize: 12, marginTop: 12, display: 'block' }}>
+                          {item.createTime?.replace('T', ' ')}
+                        </Text>
+                      </div>
+                    </div>
                   </Card>
                 ))}
-              </>
+              </div>
             )
           )}
         </Spin>
@@ -779,7 +1005,7 @@ const MyPage = () => {
         </div>
       </Modal>
 
-      <Modal open={editOpen} onCancel={() => setEditOpen(false)} onOk={submitEdit} title="编辑资料">
+      <Modal open={editOpen} onCancel={() => setEditOpen(false)} onOk={submitEdit} title="编辑资料" okText="确定" cancelText="取消">
         <Form form={form} labelCol={{ span: 5 }} wrapperCol={{ span: 17 }}>
           <Form.Item label="用户名" name="username"><Input disabled /></Form.Item>
           <Form.Item label="手机号" name="phone"><Input /></Form.Item>

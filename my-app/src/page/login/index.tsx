@@ -28,17 +28,12 @@ function Login() {
         dispatch(setToken(token));
         dispatch(setUsername(user.username));
         dispatch(setUserId(user.id));
-        // login 登录成功内新增
-      
-        localStorage.setItem("token", token);
-        localStorage.setItem("userId", String(user.id));
-
         navigate('/home', { replace: true });
       } else {
         alert("登录失败：" + res.data.msg);
       }
     } catch (err) {
-      console.log(err);
+      console.error(err);
     }
   }
 
@@ -66,11 +61,12 @@ function Login() {
             name="password"
             rules={[{ required: true, message: '请输入密码' }]}
           >
-            <Input 
+            <Input
               size="large"
-              prefix={<LockOutlined />} 
-              type="password" 
-              placeholder="密码" 
+              prefix={<LockOutlined />}
+              type="password"
+              autoComplete="current-password"
+              placeholder="密码"
             />
           </Form.Item>
 

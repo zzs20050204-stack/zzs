@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Table, Button, message, Typography, Input, Space, Card, Popconfirm } from 'antd';
+import { Table, Button, message, Typography, Input, Space, Card, Popconfirm, Empty } from 'antd';
 import { TruckOutlined, SearchOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useSelector } from 'react-redux';
+import { RootState } from '../../store';
 import http from '../../utils/http/http';
 
 const { Title } = Typography;
@@ -25,7 +26,7 @@ const AdminOrder = () => {
   const [originList, setOriginList] = useState<OrderItem[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const { token } = useSelector((state: any) => state.auth);
+  const { token } = useSelector((state: RootState) => state.auth);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
 
   const getCurrentUser = async () => {
@@ -34,8 +35,8 @@ const AdminOrder = () => {
       if (res.data.code === 200) {
         setIsAdmin(res.data.data.role === '管理员');
       }
-    } catch (e) {
-      console.log(e);
+    } catch {
+      // 获取用户信息失败不影响订单展示
     }
   };
 
@@ -54,10 +55,19 @@ const AdminOrder = () => {
     }
   };
 
+  const [sendLoadingId, setSendLoadingId] = useState<number | null>(null);
+
   const handleSend = async (id: number) => {
-    await http.post('/goods/order/send', null, { params: { id } });
-    message.success('发货成功');
-    loadAllOrder();
+    setSendLoadingId(id);
+    try {
+      await http.post('/goods/order/send', null, { params: { id } });
+      message.success('发货成功');
+      loadAllOrder();
+    } catch {
+      message.error('发货失败');
+    } finally {
+      setSendLoadingId(null);
+    }
   };
 
   const handleAgreeRefund = async (id: number) => {
@@ -99,40 +109,40 @@ const AdminOrder = () => {
   }, [token]);
 
   const columns = [
-    { title: '订单编号', dataIndex: 'orderNo', key: 'orderNo', width: 220 },
-    { title: '商品名称', dataIndex: 'name', key: 'name', width: 200 },
-    { title: '订单金额', dataIndex: 'totalPrice', key: 'totalPrice', width: 120, render: (p: number) => `¥${p}` },
-    { title: '下单用户', dataIndex: 'username', key: 'username', width: 140 },
-    { title: '订单状态', dataIndex: 'status', key: 'status', width: 140 },
-    { title: '下单时间', dataIndex: 'createTime', key: 'createTime', width: 200 },
-
-    // ========== ✅ 新增：收货地址列 ==========
+    { title: '订单编号', dataIndex: 'orderNo', key: 'orderNo', ellipsis: true, width: 180 },
+    { title: '商品名称', dataIndex: 'name', key: 'name', ellipsis: true, width: 140 },
+    { title: '金额', dataIndex: 'totalPrice', key: 'totalPrice', width: 90, render: (p: number) => `¥${p}` },
+    { title: '用户', dataIndex: 'username', key: 'username', width: 100 },
+    { title: '状态', dataIndex: 'status', key: 'status', width: 110 },
+    { title: '下单时间', dataIndex: 'createTime', key: 'createTime', width: 140, render: (v: string) => v?.replace('T', ' ') },
     {
-          title: '收货地址',
-          key: 'receiverAddress',
-          width: 280,
-          render: (_: any, record: OrderItem) => (
-            <span>{record.receiverAddress || '暂无地址'}</span>
-          )
-        },
-
+      title: '收货地址',
+      key: 'receiverAddress',
+      ellipsis: true,
+      width: 180,
+      render: (_: any, record: OrderItem) => (
+        <span>{record.receiverAddress || '暂无地址'}</span>
+      ),
+    },
     {
       title: '操作',
       key: 'action',
-      width: 280,
+      width: 220,
       render: (_: unknown, record: OrderItem) => {
         return (
           <Space size="small">
             {record.status === '已支付' && (
-              <Button type="primary" size="small" icon={<TruckOutlined />} onClick={() => handleSend(record.id)}>发货</Button>
+              <Popconfirm title="确认发货？" okText="确定" cancelText="取消" onConfirm={() => handleSend(record.id)}>
+                <Button type="primary" size="small" icon={<TruckOutlined />} loading={sendLoadingId === record.id}>发货</Button>
+              </Popconfirm>
             )}
             {record.status === '申请退款中' && (
-              <Popconfirm title="确认同意退款吗？" onConfirm={() => handleAgreeRefund(record.id)}>
+              <Popconfirm title="确认同意退款吗？" okText="确定" cancelText="取消" onConfirm={() => handleAgreeRefund(record.id)}>
                 <Button danger size="small">同意退款</Button>
               </Popconfirm>
             )}
             {isAdmin && (
-              <Popconfirm title="确定删除？" onConfirm={() => handleDelete(record.id)}>
+              <Popconfirm title="确定删除？" okText="确定" cancelText="取消" onConfirm={() => handleDelete(record.id)}>
                 <Button danger size="small" icon={<DeleteOutlined />}>删除</Button>
               </Popconfirm>
             )}
@@ -149,7 +159,7 @@ const AdminOrder = () => {
         <Search placeholder="订单号 / 商品 / 用户" allowClear enterButton={<SearchOutlined />} style={{ width: 360 }} onSearch={handleSearch} />
       </div>
       <Card variant="borderless" style={{ borderRadius: 12 }} styles={{ body: { padding: '20px 24px' } }}>
-        <Table rowKey="id" loading={loading} columns={columns} dataSource={orderList} pagination={{ pageSize: 10, showSizeChanger: false }} scroll={{ x: 'max-content' }} />
+        <Table rowKey="id" loading={loading} columns={columns} dataSource={orderList} pagination={{ pageSize: 10, showSizeChanger: false, showTotal: (t) => `共 ${t} 条` }} locale={{ emptyText: <Empty description="暂无订单" /> }} />
       </Card>
     </div>
   );

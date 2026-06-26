@@ -5,7 +5,10 @@ import { setMenuKey } from '../../utils/menuSlice';
 import { setToken } from '../../store/login/authSlice';
 import { removeToken } from '../../utils/auth';
 import request from '../../utils/http/http';
+import { RootState } from '../../store';
+import { BASE_URL } from '../../utils/constants';
 import ProfileModal from '../../page/profile';
+import NotificationCenter from '../NotificationCenter';
 import {
   Menu,
   Dropdown,
@@ -46,25 +49,25 @@ function getItem(
 const titleMap: Record<string, string> = {
   '1': '首页',
   '/goods': '商品',
-  '/9': '在线报修',
+  '/repair': '在线报修',
   '/order': '订单管理',
-  '/sub1': '住户管理',
-  
-  '/10': '公告管理',
-  '/11': '用户管理',
+  '/household': '住户管理',
+  '/notices': '公告管理',
+  '/users': '用户管理',
   '/my': '我的',
   '/property': '物业缴费',
   '/admin/property': '缴费单管理',
   '/suggestion': '建议反馈',
   '/admin/suggestion': '建议管理',
    '/visitor': '访客预约',
-  '/admin/visitor': '访客审核'
+  '/admin/visitor': '访客审核',
+  '/dashboard': '数据看板'
 };
 
 function TopMenu() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { currentKey } = useSelector((state: any) => state.menu);
+  const { currentKey } = useSelector((state: RootState) => state.menu);
 
   const [userRole, setUserRole] = useState<'admin' | 'user'>('user');
   const [user, setUser] = useState<any>(null);
@@ -111,12 +114,12 @@ function TopMenu() {
   const adminMenu = [
     getItem('首页', '1', <PieChartOutlined />),
     getItem('商品', '/goods', <ShopOutlined />),
-    getItem('在线报修', '/9', <WarningOutlined />),
+    getItem('在线报修', '/repair', <WarningOutlined />),
     getItem('订单管理', '/order', <OrderedListOutlined />),
-    getItem('住户管理', '/sub1', <UserOutlined />),
-   
-    getItem('公告管理', '/10', <NotificationOutlined />),
-    getItem('用户管理', '/11', <TeamOutlined />),
+    getItem('住户管理', '/household', <UserOutlined />),
+
+    getItem('公告管理', '/notices', <NotificationOutlined />),
+    getItem('用户管理', '/users', <TeamOutlined />),
     getItem('访客审核', '/admin/visitor', <AuditOutlined />),
     getItem('缴费单管理', '/admin/property', <FileOutlined />),
     getItem('建议管理', '/admin/suggestion', <MessageOutlined />),
@@ -126,8 +129,8 @@ function TopMenu() {
   const userMenu = [
     getItem('首页', '1', <PieChartOutlined />),
     getItem('商品', '/goods', <ShopOutlined />),
-    getItem('在线报修', '/9', <WarningOutlined />),
-    getItem('公告', '/10', <NotificationOutlined />),
+    getItem('在线报修', '/repair', <WarningOutlined />),
+    getItem('公告', '/notices', <NotificationOutlined />),
     getItem('物业缴费', '/property', <PayCircleOutlined />),
     getItem('访客预约', '/visitor', <UsergroupAddOutlined />),
     getItem('建议反馈', '/suggestion', <MessageOutlined />),
@@ -230,17 +233,19 @@ function TopMenu() {
         />
       </div>
 
-      <div style={{ 
-        paddingRight: '24px', 
-        height: 48, 
-        display: 'flex', 
+      <div style={{
+        paddingRight: '24px',
+        height: 48,
+        display: 'flex',
         alignItems: 'center',
         fontSize: '14px',
         color: '#fff',
         whiteSpace: 'nowrap',
         minWidth: '140px',
-        justifyContent: 'flex-end'
+        justifyContent: 'flex-end',
+        gap: 16
       }}>
+        <NotificationCenter />
         <Dropdown
           menu={{ items: userMenuItems, onClick: onUserMenuClick }}
           placement="bottom"
@@ -248,7 +253,7 @@ function TopMenu() {
           <Space style={{ cursor: 'pointer' }}>
             <Avatar
               size={24}
-              src={user?.avatar ? `http://localhost:8080${user.avatar}` : null}
+              src={user?.avatar ? `${BASE_URL}${user.avatar}` : null}
               icon={<UserOutlined />}
             />
             欢迎您,{user?.username || '用户'} <DownOutlined />

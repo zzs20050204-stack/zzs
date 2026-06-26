@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Avatar, Modal, Descriptions, Button, Form, Input, Upload } from 'antd';
+import { Avatar, Modal, Descriptions, Button, Form, Input, Upload, message } from 'antd';
 import { UserOutlined, CameraOutlined, EditOutlined } from '@ant-design/icons';
 import http from '../../utils/http/http';
+import { BASE_URL } from '../../utils/constants';
 
 interface ProfileModalProps {
   visible: boolean;
@@ -11,13 +12,14 @@ interface ProfileModalProps {
 
 const ProfileModal = ({ visible, onClose, user }: ProfileModalProps) => {
   const [editOpen, setEditOpen] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
+  const [uploadLoading, setUploadLoading] = useState(false);
   const [form] = Form.useForm();
 
   if (!user) return null;
 
-  // 强制清除浏览器缓存 + 完整图片地址
   const avatarUrl = user.avatar
-    ? `http://localhost:8080${user.avatar}?time=${new Date().getTime()}`
+    ? `${BASE_URL}${user.avatar}?time=${new Date().getTime()}`
     : '';
 
   const openEdit = () => {
@@ -30,25 +32,32 @@ const ProfileModal = ({ visible, onClose, user }: ProfileModalProps) => {
   };
 
   const submitEdit = async () => {
+    setEditLoading(true);
     try {
       const values = await form.validateFields();
       await http.post('/updateUser', values);
+      message.success('资料更新成功');
       setEditOpen(false);
-      window.location.reload();
-    } catch (err) {
-      console.log(err);
+      onClose();
+    } catch {
+      message.error('更新失败');
+    } finally {
+      setEditLoading(false);
     }
   };
 
   const uploadAvatar = async (file: File) => {
     const fd = new FormData();
     fd.append('file', file);
+    setUploadLoading(true);
     try {
       await http.post('/uploadAvatar', fd);
-      // 上传成功后刷新整个项目 → 首页头像同步更新
-      window.location.reload();
-    } catch (err) {
-      console.log('上传失败', err);
+      message.success('头像更新成功');
+      onClose();
+    } catch {
+      message.error('上传失败');
+    } finally {
+      setUploadLoading(false);
     }
     return false;
   };
@@ -64,8 +73,10 @@ const ProfileModal = ({ visible, onClose, user }: ProfileModalProps) => {
           <Button key="close" onClick={onClose}>关闭</Button>,
           <Button key="edit" icon={<EditOutlined />} onClick={openEdit}>编辑资料</Button>,
           <Upload key="upload" showUploadList={false} beforeUpload={uploadAvatar}>
-            <Button type="primary" icon={<CameraOutlined />}>更换头像</Button>
-          </Upload>
+            <Button type="primary" icon={<CameraOutlined />} loading={uploadLoading}>
+              {uploadLoading ? '上传中...' : '更换头像'}
+            </Button>
+          </Upload>,
         ]}
       >
         <div style={{ textAlign: 'center', marginBottom: 20 }}>
@@ -85,11 +96,18 @@ const ProfileModal = ({ visible, onClose, user }: ProfileModalProps) => {
           <Descriptions.Item label="邮箱">{user.email || '未填写'}</Descriptions.Item>
           <Descriptions.Item label="角色">{user.role || '管理员'}</Descriptions.Item>
           <Descriptions.Item label="状态"><span style={{ color: '#52c41a' }}>正常</span></Descriptions.Item>
-          <Descriptions.Item label="创建时间">{user.createTime || '未知'}</Descriptions.Item>
+          <Descriptions.Item label="创建时间">{user.createTime?.replace('T', ' ') || '未知'}</Descriptions.Item>
         </Descriptions>
       </Modal>
 
-      <Modal title="编辑资料" open={editOpen} onCancel={() => setEditOpen(false)} onOk={submitEdit}>
+      <Modal
+        title="编辑资料"
+        open={editOpen}
+        onCancel={() => setEditOpen(false)}
+        onOk={submitEdit}
+        okText="确定" cancelText="取消"
+        confirmLoading={editLoading}
+      >
         <Form form={form} labelCol={{ span: 4 }} wrapperCol={{ span: 18 }}>
           <Form.Item label="用户名" name="username"><Input disabled /></Form.Item>
           <Form.Item label="手机号" name="phone"><Input placeholder="请输入手机号" /></Form.Item>

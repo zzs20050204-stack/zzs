@@ -3,9 +3,10 @@ import {
   Card, Form, Input, Button, message,
   Typography, Divider, Table, Tag, Empty
 } from 'antd';
+import { MessageOutlined } from '@ant-design/icons';
 import http from '../../utils/http/http';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 const { TextArea } = Input;
 
 interface Suggestion {
@@ -16,41 +17,42 @@ interface Suggestion {
   createTime: string;
 }
 
-const Suggestion = () => {
+export default function Suggestion() {
   const [loading, setLoading] = useState(false);
+  const [listLoading, setListLoading] = useState(false);
   const [list, setList] = useState<Suggestion[]>([]);
   const [form] = Form.useForm();
 
   const username = sessionStorage.getItem('username') || '';
 
-  // 加载我的建议
   const loadMySuggestion = async () => {
     if (!username) return;
+    setListLoading(true);
     try {
       const res = await http.get('/property/suggestion/myList?username=' + username);
       setList(res.data.data || []);
-    } catch (err) {
-      console.error('加载失败', err);
+    } catch {
+      message.error('加载失败');
+    } finally {
+      setListLoading(false);
     }
   };
 
-  // 提交建议（防重复提交）
   const onFinish = async (values: any) => {
-    if (loading) return; // 正在加载中，直接return，防止重复提交
+    if (loading) return;
     setLoading(true);
-
     try {
       await http.post('/property/suggestion/add', {
-        username: username,
-        content: values.content
+        username,
+        content: values.content,
       });
       message.success('提交成功');
-      form.resetFields(); // 清空输入框
+      form.resetFields();
       loadMySuggestion();
-    } catch (e) {
+    } catch {
       message.error('提交失败');
     } finally {
-      setLoading(false); // 释放按钮
+      setLoading(false);
     }
   };
 
@@ -59,61 +61,70 @@ const Suggestion = () => {
   }, [username]);
 
   return (
-    <div style={{ padding: 20 }}>
-      <Card style={{ maxWidth: 700, margin: '0 auto' }}>
-        <Title level={4} style={{ textAlign: 'center' }}>建议反馈</Title>
-        <Divider />
+    <div style={{ padding: '24px 32px', maxWidth: 1100, margin: '0 auto' }}>
+      <div style={{
+        marginBottom: 20,
+        borderBottom: '1px solid #f0f2f5',
+        paddingBottom: 12
+      }}>
+        <Title level={4} style={{ margin: 0 }}>建议反馈</Title>
+        <Text type="secondary" style={{ fontSize: 13 }}>欢迎提出宝贵意见，帮助我们改进服务</Text>
+      </div>
 
+      <Card variant="borderless" style={{ borderRadius: 12, marginBottom: 24 }}>
+        <Title level={5} style={{ marginBottom: 16 }}>
+          <MessageOutlined style={{ marginRight: 8, color: '#55c4ae' }} />
+          提交建议
+        </Title>
         <Form form={form} layout="vertical" onFinish={onFinish}>
           <Form.Item
             name="content"
             rules={[{ required: true, message: '请输入内容' }]}
-            label="建议内容"
           >
-            <TextArea rows={5} placeholder="请输入您的建议..." />
+            <TextArea rows={4} placeholder="请输入您的建议或反馈..." maxLength={500} showCount />
           </Form.Item>
-          <Form.Item>
+          <Form.Item style={{ marginBottom: 0 }}>
             <Button
               type="primary"
               htmlType="submit"
               loading={loading}
-              disabled={loading}  // 👈 防重复提交
-              block
             >
-              {loading ? '提交中...' : '提交建议'}
+              提交建议
             </Button>
           </Form.Item>
         </Form>
+      </Card>
 
-        <Divider />
-
-        <div>
-          <h4>📋 我的建议历史</h4>
-          {list.length === 0 ? (
-            <Empty style={{ margin: '20px 0' }} />
-          ) : (
-            <Table
-              rowKey="id"
-              dataSource={list}
-              pagination={false}
-              columns={[
-                { title: '内容', dataIndex: 'content' },
-                {
-                  title: '状态',
-                  render: (_, r) => (
-                    <Tag color={r.status === '待处理' ? 'red' : 'green'}>
-                      {r.status}
-                    </Tag>
-                  )
-                },
-                { title: '时间', dataIndex: 'createTime' }
-              ]}
-            />
-          )}
-        </div>
+      <Card
+        variant="borderless"
+        style={{ borderRadius: 12 }}
+        title="我的建议记录"
+      >
+        <Table
+          rowKey="id"
+          loading={listLoading}
+          dataSource={list}
+          pagination={{ pageSize: 10 }}
+          locale={{
+            emptyText: <Empty description="还没有提交过建议">
+              <MessageOutlined style={{ fontSize: 48, color: '#d9d9d9' }} />
+            </Empty>
+          }}
+          columns={[
+            { title: '内容', dataIndex: 'content', ellipsis: true },
+            {
+              title: '状态',
+              dataIndex: 'status',
+              width: 100,
+              align: 'center',
+              render: (s: string) => (
+                <Tag color={s === '待处理' ? 'red' : 'green'}>{s}</Tag>
+              ),
+            },
+            { title: '提交时间', dataIndex: 'createTime', width: 180, render: (v: string) => v?.replace('T', ' ') },
+          ]}
+        />
       </Card>
     </div>
   );
-};
-
-export default Suggestion;
+}

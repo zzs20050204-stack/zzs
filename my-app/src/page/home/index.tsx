@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import { Layout, theme } from 'antd';
 import { useSelector } from 'react-redux';
-import Work from '../../conponents/footer';
-import TopMenu from '../../conponents/navLeft';
+import { RootState } from '../../store';
+import Work from '../../components/footer';
+import TopMenu from '../../components/navLeft';
 
 import { componentMap } from '../../router/routerMap';
 
 const { Header, Content, Footer } = Layout;
 
 function Home() {
-  const { currentKey, currentTitle } = useSelector((state: any) => state.menu);
+  const { currentKey, currentTitle } = useSelector((state: RootState) => state.menu);
 
   const {
     token: { colorBgContainer },
@@ -50,7 +51,7 @@ function Home() {
             minHeight: 'calc(100vh - 180px)',
             padding: 0,
             margin: 0,
-            background: colorBgContainer,
+            background: 'transparent',
           }}
         >
           {renderPage()}

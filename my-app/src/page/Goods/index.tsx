@@ -1,19 +1,22 @@
 import { useState, useEffect } from 'react';
 import {
-  Card, Button, Modal, Form, Input, InputNumber,
+  Card, Button, Modal, Form, Input, InputNumber, Upload,
   Popconfirm, message, Space, Divider, Typography, Row, Col, Empty, Tooltip
 } from 'antd';
-import { 
-  PlusOutlined, 
-  ShoppingCartOutlined, 
-  ShoppingOutlined, 
-  MessageOutlined, 
+import {
+  PlusOutlined,
+  ShoppingCartOutlined,
+  MessageOutlined,
   DeleteOutlined,
   CalendarOutlined,
   PictureOutlined,
-  EditOutlined
+  EditOutlined,
+  SearchOutlined,
+  LoadingOutlined
 } from '@ant-design/icons';
+import type { UploadFile, RcFile } from 'antd/es/upload';
 import http from '../../utils/http/http';
+import { BASE_URL } from '../../utils/constants';
 
 const { Paragraph, Text, Title } = Typography;
 
@@ -48,14 +51,40 @@ const Goods = () => {
   const [user, setUser] = useState<UserInfo | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [goodsList, setGoodsList] = useState<GoodsItem[]>([]);
+  const [originList, setOriginList] = useState<GoodsItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [searchName, setSearchName] = useState('');
 
   const [addModalVisible, setAddModalVisible] = useState(false);
+  const [addLoading, setAddLoading] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
   const [commentModalVisible, setCommentModalVisible] = useState(false);
+  const [commentLoading, setCommentLoading] = useState(false);
   const [currentGoodsId, setCurrentGoodsId] = useState<number>(0);
   const [currentEditGoods, setCurrentEditGoods] = useState<GoodsItem | null>(null);
   const [commentList, setCommentList] = useState<CommentItem[]>([]);
+  const [cartLoadingId, setCartLoadingId] = useState<number | null>(null);
+  const [buyLoadingId, setBuyLoadingId] = useState<number | null>(null);
+
+  // 图片上传
+  const [addImageFile, setAddImageFile] = useState<UploadFile | null>(null);
+  const [addImageUrl, setAddImageUrl] = useState('');
+  const [editImageFile, setEditImageFile] = useState<UploadFile | null>(null);
+  const [editImageUrl, setEditImageUrl] = useState('');
+  const [uploading, setUploading] = useState(false);
+
+  const uploadImage = async (file: RcFile): Promise<string> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await http.post('/goods/uploadImage', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    if (res.data.code === 200) {
+      return BASE_URL + res.data.data;
+    }
+    throw new Error('上传失败');
+  };
 
   const getUserInfo = async () => {
     try {
@@ -65,8 +94,8 @@ const Goods = () => {
         setUser(data);
         setIsAdmin(data.role === '管理员');
       }
-    } catch (err) {
-      console.error('获取用户信息失败', err);
+    } catch {
+      // 获取用户信息失败
     }
   };
 
@@ -75,12 +104,23 @@ const Goods = () => {
     try {
       const res = await http.get('/goods/list');
       if (res.data.code === 200) {
-        setGoodsList(res.data.data);
+        const data = res.data.data || [];
+        setOriginList(data);
+        setGoodsList(data);
       }
     } catch (err) {
       message.error('商品加载失败');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSearch = (value: string) => {
+    setSearchName(value);
+    if (!value.trim()) {
+      setGoodsList(originList);
+    } else {
+      setGoodsList(originList.filter(item => item.name.includes(value)));
     }
   };
 
@@ -93,13 +133,17 @@ const Goods = () => {
   const handleAddGoods = async () => {
     try {
       const values = await form.validateFields();
+      setAddLoading(true);
       await http.post('/goods/add', values);
       message.success('商品发布成功');
       setAddModalVisible(false);
       form.resetFields();
+      setAddImageUrl('');
       getGoodsList();
-    } catch (err) {
-      console.error('发布商品失败', err);
+    } catch {
+      message.error('发布商品失败');
+    } finally {
+      setAddLoading(false);
     }
   };
 
@@ -107,6 +151,7 @@ const Goods = () => {
   const handleOpenEdit = (record: GoodsItem) => {
     setCurrentEditGoods(record);
     editForm.setFieldsValue(record);
+    setEditImageUrl(record.img || '');
     setEditModalVisible(true);
   };
 
@@ -114,6 +159,7 @@ const Goods = () => {
   const handleUpdateGoods = async () => {
     try {
       const values = await editForm.validateFields();
+      setEditLoading(true);
       await http.put('/goods/update', {
         id: currentEditGoods?.id,
         ...values
@@ -121,8 +167,10 @@ const Goods = () => {
       message.success('修改成功');
       setEditModalVisible(false);
       getGoodsList();
-    } catch (err) {
-      console.error('修改失败', err);
+    } catch {
+      message.error('修改失败');
+    } finally {
+      setEditLoading(false);
     }
   };
 
@@ -137,43 +185,41 @@ const Goods = () => {
     }
   };
 
-  // 加入购物车
+  // 加入购物车（后端自动去重，重复点击会叠加数量）
   const handleAddCart = async (goodsId: number) => {
     if (!user) {
       message.warning('请先登录');
       return;
     }
+    setCartLoadingId(goodsId);
     try {
       const params = { userId: user.id, goodsId, num: 1 };
       await http.post('/goods/cart/add', params);
       message.success('已加入购物车');
     } catch (err) {
       message.error('加入购物车失败');
+    } finally {
+      setCartLoadingId(null);
     }
   };
 
-  // ======================
-  // 🔥 修复：立即购买（正确传参，生成订单）
-  // ======================
- const handleBuy = async (record: GoodsItem) => {
-  if (!user) {
-    message.warning('请先登录');
-    return;
-  }
-  try {
-    // ✅ 正确传参，现在后端支持了
-    const params = {
-      userId: user.id,
-      goodsId: record.id,
-      num: 1
-    };
-    await http.post('/goods/order/add', params);
-    message.success('下单成功，请前往【我的】查看订单');
-  } catch (err) {
-    message.error('购买失败');
-    console.error(err);
-  }
-};
+  // 立即购买
+  const handleBuy = async (record: GoodsItem) => {
+    if (!user) {
+      message.warning('请先登录');
+      return;
+    }
+    setBuyLoadingId(record.id);
+    try {
+      const params = { userId: user.id, goodsId: record.id, num: 1 };
+      await http.post('/goods/order/add', params);
+      message.success('下单成功，请前往【我的】查看订单');
+    } catch {
+      message.error('购买失败');
+    } finally {
+      setBuyLoadingId(null);
+    }
+  };
 
   // 打开评价
   const openCommentModal = async (goodsId: number) => {
@@ -194,17 +240,19 @@ const Goods = () => {
     if (!user) return;
     try {
       const values = await commentForm.validateFields();
+      setCommentLoading(true);
       const params = { goodsId: currentGoodsId, userId: user.id, content: values.content };
       await http.post('/goods/comment/add', params);
       message.success('评价发布成功');
       commentForm.resetFields();
-      
       const res = await http.get('/goods/comment/list', { params: { goodsId: currentGoodsId } });
       if (res.data.code === 200) {
         setCommentList(res.data.data);
       }
-    } catch (err) {
-      console.error('发表评论失败', err);
+    } catch {
+      message.error('发表评论失败');
+    } finally {
+      setCommentLoading(false);
     }
   };
 
@@ -218,11 +266,22 @@ const Goods = () => {
           <Title level={3} style={{ margin: 0, fontWeight: 600 }}>🏪 社区商圈</Title>
           <Text type="secondary">邻里好物 · 便捷交易 · 互助共享</Text>
         </div>
-        {isAdmin && (
-          <Button size="large" type="primary" icon={<PlusOutlined />} onClick={() => setAddModalVisible(true)}>
-            发布商品
-          </Button>
-        )}
+        <Space>
+          <Input.Search
+            placeholder="搜索商品名称"
+            value={searchName}
+            onChange={e => handleSearch(e.target.value)}
+            onSearch={handleSearch}
+            style={{ width: 260 }}
+            allowClear
+            prefix={<SearchOutlined />}
+          />
+          {isAdmin && (
+            <Button size="large" type="primary" icon={<PlusOutlined />} onClick={() => setAddModalVisible(true)}>
+              发布商品
+            </Button>
+          )}
+        </Space>
       </div>
 
       {goodsList.length === 0 ? (
@@ -236,44 +295,55 @@ const Goods = () => {
               <Card
                 hoverable
                 loading={loading}
-                style={{ borderRadius: 12, overflow: 'hidden' }}
+                style={{ borderRadius: 16, overflow: 'hidden', height: '100%', display: 'flex', flexDirection: 'column' }}
                 cover={
-                  <div style={{ height: 160, backgroundColor: '#f7f8fa', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ height: 180, backgroundColor: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
                     {item.img ? (
-                      <img src={item.img} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <img
+                        src={item.img.startsWith('/goods-images/') ? BASE_URL + item.img : item.img}
+                        alt={item.name}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s' }}
+                      />
                     ) : (
-                      <PictureOutlined style={{ fontSize: 48, color: '#ddd' }} />
+                      <div style={{ textAlign: 'center' }}>
+                        <PictureOutlined style={{ fontSize: 48, color: '#d9d9d9' }} />
+                        <div style={{ color: '#bfbfbf', marginTop: 8, fontSize: 13 }}>暂无图片</div>
+                      </div>
+                    )}
+                    {isAdmin && (
+                      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, background: 'linear-gradient(180deg, rgba(0,0,0,0.3) 0%, transparent 100%)', padding: '8px 12px', display: 'flex', justifyContent: 'flex-end', gap: 4 }}>
+                        <Button size="small" type="text" style={{ color: '#fff' }} icon={<EditOutlined />} onClick={(e) => { e.stopPropagation(); handleOpenEdit(item); }} />
+                        <Popconfirm title="确定删除？" okText="确定" cancelText="取消" onConfirm={() => handleDeleteGoods(item.id)}>
+                          <Button size="small" type="text" style={{ color: '#ff7875' }} icon={<DeleteOutlined />} />
+                        </Popconfirm>
+                      </div>
                     )}
                   </div>
                 }
+                styles={{ body: { padding: '16px', flex: 1, display: 'flex', flexDirection: 'column' } }}
                 actions={[
-                  <Tooltip title="加入购物车"><ShoppingCartOutlined onClick={() => handleAddCart(item.id)} /></Tooltip>,
-                  <Tooltip title="评价"><MessageOutlined onClick={() => openCommentModal(item.id)} /></Tooltip>,
-                  <span style={{ color: '#ff4d4f', fontWeight: 500 }} onClick={() => handleBuy(item)}>立即购买</span>
+                  <Tooltip title="加入购物车" key="cart">
+                    <Button type="text" loading={cartLoadingId === item.id} icon={<ShoppingCartOutlined style={{ fontSize: 18 }} />} onClick={(e) => { e.stopPropagation(); handleAddCart(item.id); }} />
+                  </Tooltip>,
+                  <Tooltip title="查看评价" key="comment">
+                    <Button type="text" icon={<MessageOutlined style={{ fontSize: 18 }} />} onClick={(e) => { e.stopPropagation(); openCommentModal(item.id); }} />
+                  </Tooltip>,
+                  <Tooltip title="立即购买" key="buy">
+                    <Button type="primary" size="small" loading={buyLoadingId === item.id} onClick={(e) => { e.stopPropagation(); handleBuy(item); }}>立即购买</Button>
+                  </Tooltip>,
                 ]}
               >
-                {isAdmin && (
-                  <div style={{ position: 'absolute', top: 10, right: 10, zIndex: 10, display: 'flex', gap: 4 }}>
-                    <Tooltip title="编辑">
-                      <Button size="small" type="text" icon={<EditOutlined />} onClick={() => handleOpenEdit(item)} />
-                    </Tooltip>
-                    <Popconfirm title="确定删除？" onConfirm={() => handleDeleteGoods(item.id)}>
-                      <Button size="small" type="text" danger icon={<DeleteOutlined />} />
-                    </Popconfirm>
-                  </div>
-                )}
-
                 <Card.Meta
-                  title={<span style={{ fontSize: 15, fontWeight: 600 }}>{item.name}</span>}
+                  title={<span style={{ fontSize: 15, fontWeight: 600, color: '#1a1a2e' }}>{item.name}</span>}
                   description={
                     <div>
-                      <div style={{ color: '#ff4d4f', fontSize: 18, fontWeight: 'bold', margin: '6px 0' }}>
-                        ￥{item.price}
+                      <div style={{ color: '#ff4d4f', fontSize: 22, fontWeight: 700, margin: '8px 0 6px' }}>
+                        ¥{item.price}
                       </div>
-                      <Paragraph ellipsis={{ rows: 2 }} style={{ fontSize: 12, color: '#666' }}>
+                      <Paragraph ellipsis={{ rows: 2 }} style={{ fontSize: 12, color: '#8c8c8c', margin: 0, lineHeight: 1.6 }}>
                         {item.info || '暂无简介'}
                       </Paragraph>
-                      <div style={{ fontSize: 11, color: '#999', marginTop: 8 }}>
+                      <div style={{ fontSize: 11, color: '#bfbfbf', marginTop: 10, display: 'flex', alignItems: 'center', gap: 4 }}>
                         <CalendarOutlined /> {item.createTime?.split(' ')[0]}
                       </div>
                     </div>
@@ -290,11 +360,42 @@ const Goods = () => {
         open={addModalVisible}
         onCancel={() => setAddModalVisible(false)}
         onOk={handleAddGoods}
+        okText="确定" cancelText="取消"
+        confirmLoading={addLoading}
         width={520}
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="img" label="商品图片链接">
-            <Input placeholder="输入网络图片地址，例如：https://xxx.jpg" />
+          <Form.Item name="img" label="商品图片">
+            <Upload
+              listType="picture-card"
+              maxCount={1}
+              accept="image/*"
+              beforeUpload={async (file) => {
+                try {
+                  setUploading(true);
+                  const url = await uploadImage(file as RcFile);
+                  setAddImageUrl(url);
+                  form.setFieldsValue({ img: url });
+                  message.success('图片上传成功');
+                } catch {
+                  message.error('图片上传失败');
+                } finally {
+                  setUploading(false);
+                }
+                return false;
+              }}
+              onRemove={() => {
+                setAddImageUrl('');
+                form.setFieldsValue({ img: '' });
+              }}
+            >
+              {addImageUrl ? null : (
+                <div>
+                  {uploading ? <LoadingOutlined /> : <PlusOutlined />}
+                  <div style={{ marginTop: 8 }}>上传</div>
+                </div>
+              )}
+            </Upload>
           </Form.Item>
           <Form.Item name="name" label="商品名称" rules={[{ required: true }]}>
             <Input placeholder="请输入商品名称" />
@@ -313,11 +414,42 @@ const Goods = () => {
         open={editModalVisible}
         onCancel={() => setEditModalVisible(false)}
         onOk={handleUpdateGoods}
+        okText="确定" cancelText="取消"
+        confirmLoading={editLoading}
         width={520}
       >
         <Form form={editForm} layout="vertical">
-          <Form.Item name="img" label="商品图片链接">
-            <Input placeholder="输入网络图片地址" />
+          <Form.Item name="img" label="商品图片">
+            <Upload
+              listType="picture-card"
+              maxCount={1}
+              accept="image/*"
+              beforeUpload={async (file) => {
+                try {
+                  setUploading(true);
+                  const url = await uploadImage(file as RcFile);
+                  setEditImageUrl(url);
+                  editForm.setFieldsValue({ img: url });
+                  message.success('图片上传成功');
+                } catch {
+                  message.error('图片上传失败');
+                } finally {
+                  setUploading(false);
+                }
+                return false;
+              }}
+              onRemove={() => {
+                setEditImageUrl('');
+                editForm.setFieldsValue({ img: '' });
+              }}
+            >
+              {editImageUrl ? null : (
+                <div>
+                  {uploading ? <LoadingOutlined /> : <PlusOutlined />}
+                  <div style={{ marginTop: 8 }}>上传</div>
+                </div>
+              )}
+            </Upload>
           </Form.Item>
           <Form.Item name="name" label="商品名称" rules={[{ required: true }]}>
             <Input placeholder="请输入商品名称" />
@@ -336,15 +468,17 @@ const Goods = () => {
           <Form.Item name="content" rules={[{ required: true }]}>
             <Input.TextArea rows={3} placeholder="写下你的评价..." />
           </Form.Item>
-          <Button type="primary" block onClick={handleSubmitComment}>发表评价</Button>
+          <Button type="primary" block onClick={handleSubmitComment} loading={commentLoading}>发表评价</Button>
         </Form>
         <Divider />
         <div style={{ maxHeight: 300, overflowY: 'auto' }}>
-          {commentList.map((item) => (
+          {commentList.length === 0 ? (
+            <Empty description="暂无评价，快来发表第一条吧" />
+          ) : commentList.map((item) => (
             <div key={item.id} style={{ padding: 12, backgroundColor: '#fafafa', borderRadius: 8, marginBottom: 10 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Text strong>用户 {item.userId}</Text>
-                <Text type="secondary" style={{ fontSize: 12 }}>{item.createTime}</Text>
+                <Text type="secondary" style={{ fontSize: 12 }}>{item.createTime?.replace('T', ' ')}</Text>
               </div>
               <div style={{ marginTop: 4 }}>{item.content}</div>
             </div>

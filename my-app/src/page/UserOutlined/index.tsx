@@ -221,6 +221,7 @@ function UserOutlined() {
         title={title}
         onCancel={() => setVisible(false)}
         onOk={handleSave}
+        okText="确定" cancelText="取消"
         maskClosable={false}
       >
         <Form form={form} labelCol={{ span: 5 }} wrapperCol={{ span: 19 }}>

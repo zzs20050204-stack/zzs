@@ -17,15 +17,16 @@ const AdminSuggestion = lazy(() => import("../page/Suggestion/adminSuggestion"))
 
 const VisitorPage = lazy(() => import("../page/VisitorPage"));
 const VisitorAudit = lazy(() => import("../page/VisitorPage/AuditPage"));
+const Dashboard = lazy(() => import("../page/Dashboard"));
 
 // 路由映射表：全部 带 / 斜杠
 export const componentMap: Record<string, ReactNode> = {
   "/goods": <Goods />,
   "/order": <AdminOrder />,
-  "/sub1": <UserOutlined />,
-  "/9": <Repair />,
-  "/10": <Notification />,
-  "/11": <UserManage />,
+  "/household": <UserOutlined />,
+  "/repair": <Repair />,
+  "/notices": <Notification />,
+  "/users": <UserManage />,
   "/my": <MyPage />,
   
   // 物业缴费（用户端）
@@ -37,5 +38,6 @@ export const componentMap: Record<string, ReactNode> = {
   // 建议反馈管理（管理员端）"
   "/admin/suggestion": <AdminSuggestion />,
     "/visitor": <VisitorPage />,
-  "/admin/visitor": <VisitorAudit />
+  "/admin/visitor": <VisitorAudit />,
+  "/dashboard": <Dashboard />
 };

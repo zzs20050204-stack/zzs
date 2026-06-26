@@ -10,8 +10,8 @@ http.interceptors.request.use((config) => {
   
   
   try {
-    // 从 localStorage 拿 token
-    const token = localStorage.getItem('token');
+    // 从 sessionStorage 拿 token
+    const token = sessionStorage.getItem('token');
     if (token) {
       config.headers.token = token;
     }

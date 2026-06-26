@@ -18,7 +18,10 @@ public class WebConfig implements WebMvcConfigurer {
                         "/getInfo",
                         "/updateUser",
                         "/uploadAvatar",
-                        "/avatar/**"    // ✅ 必须加这一行！！！
+                        "/goods/uploadImage",
+                        "/dashboard/**",
+                        "/avatar/**",
+                        "/goods-images/**"
                 );
     }
 
@@ -26,5 +29,7 @@ public class WebConfig implements WebMvcConfigurer {
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         registry.addResourceHandler("/avatar/**")
                 .addResourceLocations("file:" + System.getProperty("user.dir") + "/avatar/");
+        registry.addResourceHandler("/goods-images/**")
+                .addResourceLocations("file:" + System.getProperty("user.dir") + "/goods-images/");
     }
 }

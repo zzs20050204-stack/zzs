@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Table, Button, Card, message, Tag, Typography, Modal, Input, Space } from 'antd';
+import { Table, Button, Card, message, Tag, Typography, Modal, Input, Space, Select, Popconfirm, Empty } from 'antd';
 import type { ColumnType  } from 'antd/es/table';
 import http from '../../utils/http/http';
 
@@ -18,7 +18,10 @@ interface AllItem {
 
 const AllVisitorPage = () => {
   const [list, setList] = useState<AllItem[]>([]);
+  const [originList, setOriginList] = useState<AllItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
+  const [searchName, setSearchName] = useState('');
+  const [searchStatus, setSearchStatus] = useState<number | ''>('');
   // 驳回弹窗状态
   const [rejectModal, setRejectModal] = useState(false);
   const [rejectModalLoading, setRejectModalLoading] = useState(false);
@@ -43,16 +46,34 @@ const AllVisitorPage = () => {
     try {
       const res = await http.get('/api/visitor/admin/all', getHeader());
       if (res.data.code === 200) {
-        setList(res.data.data || []);
+        const data = res.data.data || [];
+        setOriginList(data);
+        setList(data);
       } else {
         message.warning(res.data.msg || '数据加载失败');
       }
-    } catch (err) {
+    } catch {
       message.error('网络异常，请稍后重试');
-      console.error(err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSearch = () => {
+    let filtered = [...originList];
+    if (searchName) {
+      filtered = filtered.filter(item => item.visitorName.includes(searchName) || item.visitorPhone.includes(searchName));
+    }
+    if (searchStatus !== '') {
+      filtered = filtered.filter(item => item.applyStatus === searchStatus);
+    }
+    setList(filtered);
+  };
+
+  const handleReset = () => {
+    setSearchName('');
+    setSearchStatus('');
+    setList(originList);
   };
 
   // 审核通过
@@ -62,9 +83,8 @@ const AllVisitorPage = () => {
       await http.put('/api/visitor/audit', { id, applyStatus: 2 }, getHeader());
       message.success('审核通过，已生成访客码');
       loadAllData();
-    } catch (err) {
+    } catch {
       message.error('操作失败，请重试');
-      console.error('审核通过报错：', err);
     } finally {
       setPassLoadingId(null);
     }
@@ -96,9 +116,8 @@ const AllVisitorPage = () => {
       message.success('已驳回该预约');
       setRejectModal(false);
       loadAllData();
-    } catch (err) {
+    } catch {
       message.error('驳回失败，请重试');
-      console.error('驳回预约报错：', err);
     } finally {
       setRejectModalLoading(false);
     }
@@ -131,13 +150,15 @@ const AllVisitorPage = () => {
       title: '开始时间',
       dataIndex: 'startTime',
       width: 170,
-      align: 'center'
+      align: 'center',
+      render: (v: string) => v?.replace('T', ' '),
     },
     {
       title: '结束时间',
       dataIndex: 'endTime',
       width: 170,
-      align: 'center'
+      align: 'center',
+      render: (v: string) => v?.replace('T', ' '),
     },
     {
       title: '状态',
@@ -160,22 +181,24 @@ const AllVisitorPage = () => {
           return (
             <Space size={8}>
               {tagNode}
-              <Button
-                size="small"
-                type="primary"
-                loading={passLoadingId === record.id}
-                onClick={() => handlePass(record.id)}
-              >
-                通过
-              </Button>
-              <Button
-                danger
-                size="small"
-                onClick={() => openReject(record.id)}
-                disabled={passLoadingId !== null}
-              >
-                驳回
-              </Button>
+              <Popconfirm title="确认审核通过该预约？" okText="确定" cancelText="取消" onConfirm={() => handlePass(record.id)}>
+                <Button
+                  size="small"
+                  type="primary"
+                  loading={passLoadingId === record.id}
+                >
+                  通过
+                </Button>
+              </Popconfirm>
+              <Popconfirm title="确认驳回该预约？" okText="确定" cancelText="取消" onConfirm={() => openReject(record.id)}>
+                <Button
+                  danger
+                  size="small"
+                  disabled={passLoadingId !== null}
+                >
+                  驳回
+                </Button>
+              </Popconfirm>
             </Space>
           );
         }
@@ -202,12 +225,34 @@ const AllVisitorPage = () => {
         paddingBottom: 12
       }}>
         <Title level={4} style={{ margin: 0 }}>全部访客预约记录</Title>
+        <Space size="small">
+          <Input
+            placeholder="搜索姓名/手机号"
+            value={searchName}
+            onChange={e => setSearchName(e.target.value)}
+            style={{ width: 180 }}
+            allowClear
+          />
+          <Select
+            placeholder="状态"
+            value={searchStatus !== '' ? searchStatus : undefined}
+            onChange={val => setSearchStatus(val !== undefined ? val : '')}
+            style={{ width: 110 }}
+            allowClear
+          >
+            <Select.Option value={1}>待审核</Select.Option>
+            <Select.Option value={2}>已通过</Select.Option>
+            <Select.Option value={3}>已驳回</Select.Option>
+          </Select>
+          <Button onClick={handleSearch} type="primary">搜索</Button>
+          <Button onClick={handleReset}>重置</Button>
+        </Space>
       </div>
 
       <Card
-        bordered={false}
+        variant="borderless"
         style={{ borderRadius: 12 }}
-        bodyStyle={{ padding: '20px 24px' }}
+        styles={{ body: { padding: '20px 24px' } }}
       >
         <Table
           rowKey="id"
@@ -215,7 +260,7 @@ const AllVisitorPage = () => {
           columns={columns}
           dataSource={list}
           pagination={{ pageSize: 10 }}
-          locale={{ emptyText: '暂无预约数据' }}
+          locale={{ emptyText: <Empty description="暂无预约数据" /> }}
         />
       </Card>
 
@@ -225,6 +270,7 @@ const AllVisitorPage = () => {
         open={rejectModal}
         onOk={confirmReject}
         onCancel={() => setRejectModal(false)}
+        okText="确定" cancelText="取消"
         confirmLoading={rejectModalLoading}
         maskClosable={false}
       >

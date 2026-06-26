@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import {
-  Form, Input, Button, DatePicker, Table, Modal, Tag, message, Space, Spin
+  Form, Input, Button, DatePicker, Table, Modal, Tag, message, Space, Spin, Select,
+  Card, Typography, Empty
 } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
+import { PlusOutlined, SearchOutlined, QrcodeOutlined } from '@ant-design/icons';
 import { QRCodeSVG } from 'qrcode.react';
 import moment from 'moment';
 import http from '../../utils/http/http';
 
 const { RangePicker } = DatePicker;
+const { Title, Text } = Typography;
 
 interface VisitorItem {
   id: number;
@@ -21,17 +23,19 @@ interface VisitorItem {
   visitorCode?: string;
 }
 
-const VisitorPage = () => {
+export default function VisitorPage() {
   const [form] = Form.useForm();
   const [list, setList] = useState<VisitorItem[]>([]);
+  const [originList, setOriginList] = useState<VisitorItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [detailLoadingId, setDetailLoadingId] = useState<number | null>(null);
   const [addModal, setAddModal] = useState(false);
   const [codeModal, setCodeModal] = useState(false);
   const [currentItem, setCurrentItem] = useState<VisitorItem | null>(null);
+  const [searchName, setSearchName] = useState('');
+  const [searchStatus, setSearchStatus] = useState<number | ''>('');
 
-  // 每次发请求前单独创建配置，强制携带header，避开defaults缓存问题
   const getHttpConfig = () => {
     const token = sessionStorage.getItem('token');
     const userId = sessionStorage.getItem('userId');
@@ -42,92 +46,101 @@ const VisitorPage = () => {
       }
     };
   };
-  
 
-  // 加载我的预约列表
   const loadList = async () => {
     setLoading(true);
     try {
-      // 手动传入headers配置，强制带上
       const res = await http.get('/api/visitor/my/list', getHttpConfig());
       if (res.data.code === 200) {
-        setList(res.data.data || []);
+        const data = res.data.data || [];
+        setOriginList(data);
+        setList(data);
       } else {
         message.warning(res.data.msg || '数据加载失败');
       }
-    } catch (err) {
+    } catch {
       message.error('网络异常，请稍后重试');
-      console.error(err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSearch = () => {
+    let filtered = [...originList];
+    if (searchName) {
+      filtered = filtered.filter(item => item.visitorName.includes(searchName) || item.visitorPhone.includes(searchName));
+    }
+    if (searchStatus !== '') {
+      filtered = filtered.filter(item => item.applyStatus === searchStatus);
+    }
+    setList(filtered);
+  };
+
+  const handleReset = () => {
+    setSearchName('');
+    setSearchStatus('');
+    setList(originList);
   };
 
   useEffect(() => {
     loadList();
   }, []);
 
-  // 提交访客预约
-const submitApply = async (values: any) => {
-  const [start, end] = values.timeRange;
+  const submitApply = async (values: any) => {
+    const [start, end] = values.timeRange;
+    const startTs = moment(start).valueOf();
+    const endTs = moment(end).valueOf();
+    if (endTs < startTs) {
+      message.warning('结束时间不能早于开始时间');
+      return;
+    }
 
-  // 前端时间戳预校验：只拦截结束 < 开始，相等允许通过
-  const startTs = moment(start).valueOf();
-  const endTs = moment(end).valueOf();
-  if (endTs < startTs) {
-    message.warning('结束时间不能早于开始时间');
-    return;
-  }
+    const params = {
+      visitorName: values.visitorName,
+      visitorPhone: values.visitorPhone,
+      visitReason: values.visitReason || '',
+      startTime: moment(start).format('YYYY-MM-DD HH:mm:ss'),
+      endTime: moment(end).format('YYYY-MM-DD HH:mm:ss')
+    };
 
-  const params = {
-    visitorName: values.visitorName,
-    visitorPhone: values.visitorPhone,
-    visitReason: values.visitReason || '',
-    startTime: moment(start).format('YYYY-MM-DD HH:mm:ss'),
-    endTime: moment(end).format('YYYY-MM-DD HH:mm:ss')
+    const phoneReg = /^1[3-9]\d{9}$/;
+    if (!phoneReg.test(params.visitorPhone)) {
+      message.warning('请输入正确的手机号');
+      return;
+    }
+
+    setSubmitLoading(true);
+    try {
+      const res = await http.post('/api/visitor/apply', params, getHttpConfig());
+      if (res.data.code === 200) {
+        message.success('预约提交成功，等待审核');
+        setAddModal(false);
+        form.resetFields();
+        handleReset();
+        loadList();
+      } else {
+        message.warning(res.data.msg);
+      }
+    } catch {
+      message.error('提交预约失败，请重试');
+    } finally {
+      setSubmitLoading(false);
+    }
   };
 
-  const phoneReg = /^1[3-9]\d{9}$/;
-  if (!phoneReg.test(params.visitorPhone)) {
-    message.warning('请输入正确的手机号');
-    return;
-  }
-
-  setSubmitLoading(true);
-  try {
-    const res = await http.post('/api/visitor/apply', params, getHttpConfig());
-    console.log('后端返回结果：', res.data);
-    if (res.data.code === 200) {
-      message.success('预约提交成功，等待审核');
-      setAddModal(false);
-      form.resetFields();
-      loadList();
-    } else {
-      message.warning(res.data.msg);
-    }
-  } catch (err) {
-    message.error('提交预约失败，请重试');
-    console.error(err);
-  } finally {
-    setSubmitLoading(false);
-  }
-};
-  // 查看访客码详情
   const viewCode = async (id: number) => {
     setDetailLoadingId(id);
     try {
       const res = await http.get(`/api/visitor/detail/${id}`, getHttpConfig());
       setCurrentItem(res.data.data);
       setCodeModal(true);
-    } catch (err) {
+    } catch {
       message.error('获取访客码失败');
-      console.error(err);
     } finally {
       setDetailLoadingId(null);
     }
   };
 
-  // 状态标签渲染
   const renderStatus = (status: number) => {
     switch (status) {
       case 1: return <Tag color="gold">待审核</Tag>;
@@ -138,59 +151,103 @@ const submitApply = async (values: any) => {
   };
 
   const columns = [
-    { title: '访客姓名', dataIndex: 'visitorName', width: 120 },
+    { title: '访客姓名', dataIndex: 'visitorName', width: 100 },
     { title: '访客手机号', dataIndex: 'visitorPhone', width: 140 },
-    { title: '来访开始时间', dataIndex: 'startTime', width: 180 },
-    { title: '来访结束时间', dataIndex: 'endTime', width: 180 },
-    { title: '状态', dataIndex: 'applyStatus', render: renderStatus, width: 100 },
+    { title: '来访开始时间', dataIndex: 'startTime', width: 170, render: (v: string) => v?.replace('T', ' ') },
+    { title: '来访结束时间', dataIndex: 'endTime', width: 170, render: (v: string) => v?.replace('T', ' ') },
+    { title: '状态', dataIndex: 'applyStatus', render: renderStatus, width: 90 },
+    {
+      title: '驳回原因',
+      dataIndex: 'rejectReason',
+      width: 180,
+      ellipsis: true,
+      render: (v: string) => v || '-',
+    },
     {
       title: '操作',
-      width: 220,
+      width: 140,
       render: (_: any, record: VisitorItem) => (
-        <Space size="middle">
-          {record.applyStatus === 2 && (
-            <Button type="link" loading={detailLoadingId === record.id} onClick={() => viewCode(record.id)}>
-              查看访客码
-            </Button>
-          )}
-          {record.applyStatus === 3 && record.rejectReason && (
-            <span style={{ color: '#999' }}>驳回原因：{record.rejectReason}</span>
-          )}
-        </Space>
-      )
-    }
+        record.applyStatus === 2 ? (
+          <Button
+            type="primary"
+            size="small"
+            icon={<QrcodeOutlined />}
+            loading={detailLoadingId === record.id}
+            onClick={() => viewCode(record.id)}
+          >
+            访客码
+          </Button>
+        ) : null
+      ),
+    },
   ];
 
-  const handleCloseAddModal = () => {
-    setAddModal(false);
-    form.resetFields();
-  };
-
   return (
-    <div style={{ padding: 20, background: '#fff', borderRadius: 8 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <h2 style={{ margin: 0 }}>我的访客预约</h2>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddModal(true)}>
-          新增预约
-        </Button>
+    <div style={{ padding: '24px 32px', maxWidth: 1200, margin: '0 auto' }}>
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 20,
+        borderBottom: '1px solid #f0f2f5',
+        paddingBottom: 12
+      }}>
+        <div>
+          <Title level={4} style={{ margin: 0 }}>我的访客预约</Title>
+          <Text type="secondary" style={{ fontSize: 13 }}>管理来访预约记录</Text>
+        </div>
+        <Space size="small">
+          <Input
+            placeholder="搜索姓名/手机号"
+            value={searchName}
+            onChange={e => setSearchName(e.target.value)}
+            style={{ width: 180 }}
+            allowClear
+            prefix={<SearchOutlined />}
+          />
+          <Select
+            placeholder="状态"
+            value={searchStatus !== '' ? searchStatus : undefined}
+            onChange={val => setSearchStatus(val !== undefined ? val : '')}
+            style={{ width: 110 }}
+            allowClear
+          >
+            <Select.Option value={1}>待审核</Select.Option>
+            <Select.Option value={2}>已通过</Select.Option>
+            <Select.Option value={3}>已驳回</Select.Option>
+          </Select>
+          <Button onClick={handleSearch} type="primary">搜索</Button>
+          <Button onClick={handleReset}>重置</Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddModal(true)}>
+            新增预约
+          </Button>
+        </Space>
       </div>
 
-      <Spin spinning={loading}>
+      <Card variant="borderless" style={{ borderRadius: 12 }}>
         <Table
           dataSource={list}
           columns={columns}
           rowKey="id"
-          bordered
+          loading={loading}
           pagination={{ pageSize: 10 }}
-          locale={{ emptyText: '暂无预约记录' }}
+          locale={{
+            emptyText: (
+              <Empty description="暂无预约记录">
+                <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddModal(true)}>
+                  立即预约
+                </Button>
+              </Empty>
+            ),
+          }}
         />
-      </Spin>
+      </Card>
 
       {/* 新增预约弹窗 */}
       <Modal
         title="访客预约申请"
         open={addModal}
-        onCancel={handleCloseAddModal}
+        onCancel={() => { setAddModal(false); form.resetFields(); }}
         footer={null}
         maskClosable={false}
         width={520}
@@ -225,10 +282,11 @@ const submitApply = async (values: any) => {
               showTime
               style={{ width: '100%' }}
               placeholder={['开始时间', '结束时间']}
+              format="YYYY-MM-DD HH:mm:ss"
             />
           </Form.Item>
 
-          <Form.Item>
+          <Form.Item style={{ marginBottom: 0 }}>
             <Button type="primary" htmlType="submit" block loading={submitLoading}>
               提交预约
             </Button>
@@ -254,13 +312,11 @@ const submitApply = async (values: any) => {
               <QRCodeSVG value={currentItem.visitorCode || ''} size={180} />
             </div>
             <p style={{ color: '#666' }}>
-              有效时间：{currentItem.startTime} ~ {currentItem.endTime}
+              有效时间：{currentItem.startTime?.replace('T', ' ')} ~ {currentItem.endTime?.replace('T', ' ')}
             </p>
           </div>
         )}
       </Modal>
     </div>
   );
-};
-
-export default VisitorPage;
+}

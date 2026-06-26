@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)",
+      "Bash(npx react-scripts *)",
+      "Bash(mvn compile *)",
+      "Bash(netstat -ano)",
+      "Bash(taskkill *)",
+      "Bash(mvn spring-boot:run -q)",
+      "Bash(curl *)",
+      "Bash(mysql *)",
+      "Bash(npm run *)",
+      "Bash(npm start *)"
+    ]
+  }
+}
