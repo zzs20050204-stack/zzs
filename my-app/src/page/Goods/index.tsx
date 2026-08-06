@@ -67,6 +67,9 @@ const Goods = () => {
   const [commentList, setCommentList] = useState<CommentItem[]>([]);
   const [cartLoadingId, setCartLoadingId] = useState<number | null>(null);
   const [buyLoadingId, setBuyLoadingId] = useState<number | null>(null);
+  const [payModalVisible, setPayModalVisible] = useState(false);
+  const [payOrder, setPayOrder] = useState<{ orderId: number; orderNo: string; totalPrice: number; goodsName: string } | null>(null);
+  const [payLoading, setPayLoading] = useState(false);
 
   // 图片上传
   const [addImageFile, setAddImageFile] = useState<UploadFile | null>(null);
@@ -216,12 +219,34 @@ const Goods = () => {
     setBuyLoadingId(record.id);
     try {
       const params = { userId: user.id, goodsId: record.id, num: 1 };
-      await http.post('/goods/order/add', params);
-      message.success('下单成功，请前往【我的】查看订单');
+      const res = await http.post('/goods/order/add', params);
+      if (res.data.code === 200 && res.data.data) {
+        const data = res.data.data;
+        setPayOrder({ orderId: data.orderId, orderNo: data.orderNo, totalPrice: data.totalPrice, goodsName: record.name });
+        setPayModalVisible(true);
+      } else {
+        message.error('下单失败');
+      }
     } catch {
       message.error('购买失败');
     } finally {
       setBuyLoadingId(null);
+    }
+  };
+
+  // 支付
+  const handlePay = async () => {
+    if (!payOrder) return;
+    setPayLoading(true);
+    try {
+      await http.post('/goods/order/pay', null, { params: { id: payOrder.orderId } });
+      message.success('支付成功！可在【我的】查看订单');
+      setPayModalVisible(false);
+      setPayOrder(null);
+    } catch {
+      message.error('支付失败');
+    } finally {
+      setPayLoading(false);
     }
   };
 
@@ -495,6 +520,46 @@ const Goods = () => {
             </div>
           ))}
         </div>
+      </Modal>
+
+      {/* 支付弹窗 */}
+      <Modal
+        title="确认支付"
+        open={payModalVisible}
+        onCancel={() => { setPayModalVisible(false); setPayOrder(null); }}
+        centered
+        width={420}
+        footer={[
+          <Button key="cancel" onClick={() => { setPayModalVisible(false); setPayOrder(null); }}>
+            稍后支付
+          </Button>,
+          <Button key="pay" type="primary" loading={payLoading} onClick={handlePay}>
+            确认支付 ¥{payOrder?.totalPrice}
+          </Button>,
+        ]}
+      >
+        {payOrder && (
+          <div style={{ padding: '8px 0' }}>
+            <div style={{ marginBottom: 16, textAlign: 'center' }}>
+              <Text type="secondary">订单金额</Text>
+              <div style={{ fontSize: 32, fontWeight: 700, color: '#ff4d4f' }}>¥{payOrder.totalPrice}</div>
+            </div>
+            <div style={{ background: '#fafafa', borderRadius: 10, padding: 14 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                <Text type="secondary">商品名称</Text>
+                <Text strong>{payOrder.goodsName}</Text>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                <Text type="secondary">订单编号</Text>
+                <Text>{payOrder.orderNo}</Text>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Text type="secondary">订单状态</Text>
+                <Text type="warning">待支付</Text>
+              </div>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

@@ -4,6 +4,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
 import Work from '../../components/footer';
 import TopMenu from '../../components/navLeft';
+import FloatingAI from '../../components/FloatingAI';
 
 import { componentMap } from '../../router/routerMap';
 
@@ -61,6 +62,9 @@ function Home() {
       <Footer style={{ textAlign: 'center', margin: 0, padding: '16px 0' }}>
         智慧社区 ©{currentYear}
       </Footer>
+
+      {/* 浮动AI助手小人 - 所有页面可见 */}
+      <FloatingAI />
     </Layout>
   );
 };

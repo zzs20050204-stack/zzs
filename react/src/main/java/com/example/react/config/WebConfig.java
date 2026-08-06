@@ -20,6 +20,7 @@ public class WebConfig implements WebMvcConfigurer {
                         "/uploadAvatar",
                         "/goods/uploadImage",
                         "/dashboard/**",
+                        "/api/ai/**",
                         "/avatar/**",
                         "/goods-images/**"
                 );

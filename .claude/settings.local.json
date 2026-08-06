@@ -10,7 +10,8 @@
       "Bash(curl *)",
       "Bash(mysql *)",
       "Bash(npm run *)",
-      "Bash(npm start *)"
+      "Bash(npm start *)",
+      "WebSearch"
     ]
   }
 }

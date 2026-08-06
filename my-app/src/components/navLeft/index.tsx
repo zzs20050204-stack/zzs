@@ -36,6 +36,7 @@ import {
   UsergroupAddOutlined,
   AuditOutlined,
   MenuOutlined,
+  RobotOutlined,
 } from '@ant-design/icons';
 
 type MenuItem = Required<MenuProps>['items'][number];
@@ -64,7 +65,8 @@ const titleMap: Record<string, string> = {
   '/admin/suggestion': '建议管理',
   '/visitor': '访客预约',
   '/admin/visitor': '访客审核',
-  '/dashboard': '数据看板'
+  '/dashboard': '数据看板',
+  '/ai-assistant': 'AI助手' // ✅新增AI助手标题映射
 };
 
 function TopMenu() {
@@ -103,9 +105,9 @@ function TopMenu() {
   }, []);
 
   const handleClick: MenuProps['onClick'] = (e) => {
-    dispatch(setMenuKey({ key: e.key, title: titleMap[e.key] || '' }));
-    setMobileMenuOpen(false);
-  };
+  dispatch(setMenuKey({ key: e.key, title: titleMap[e.key] || '' }));
+  setMobileMenuOpen(false);
+};
 
   const userMenuItems: MenuProps['items'] = [
     { key: 'profile', label: '个人中心', icon: <UserOutlined /> },
@@ -123,6 +125,7 @@ function TopMenu() {
     }
   };
 
+  // ✅管理员菜单，增加AI助手
   const adminMenu: MenuItem[] = [
     getItem('首页', '1', <PieChartOutlined />),
     getItem('商品', '/goods', <ShopOutlined />),
@@ -134,9 +137,11 @@ function TopMenu() {
     getItem('访客审核', '/admin/visitor', <AuditOutlined />),
     getItem('缴费单管理', '/admin/property', <FileOutlined />),
     getItem('建议管理', '/admin/suggestion', <MessageOutlined />),
+    getItem('AI助手', '/ai-assistant', <RobotOutlined />), // AI助手
     getItem('我的', '/my', <UserAddOutlined />),
   ];
 
+  // ✅普通用户菜单，增加AI助手
   const userMenu: MenuItem[] = [
     getItem('首页', '1', <PieChartOutlined />),
     getItem('商品', '/goods', <ShopOutlined />),
@@ -145,6 +150,7 @@ function TopMenu() {
     getItem('物业缴费', '/property', <PayCircleOutlined />),
     getItem('访客预约', '/visitor', <UsergroupAddOutlined />),
     getItem('建议反馈', '/suggestion', <MessageOutlined />),
+    getItem('AI助手', '/ai-assistant', <RobotOutlined />), // AI助手
     getItem('我的', '/my', <UserAddOutlined />),
   ];
 

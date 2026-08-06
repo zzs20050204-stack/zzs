@@ -5,7 +5,6 @@ spring:
     password: 1234
     driver-class-name: com.mysql.cj.jdbc.Driver
 
-  # ✅ 这里才是正确位置！和 datasource 平级！
   servlet:
     multipart:
       max-file-size: 10MB
@@ -15,3 +14,9 @@ spring:
 mybatis-plus:
   configuration:
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+deepseek:
+  api:
+    key: sk-0b59b88046634844a14785ff3f022320
+    url: https://api.deepseek.com/v1/chat/completions
+    model: deepseek-chat

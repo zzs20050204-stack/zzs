@@ -66,7 +66,7 @@ const adminTypeRoute: Record<string, string> = {
 
 function loadSet(key: string): Set<string> {
   try {
-    const raw = localStorage.getItem(key);
+    const raw = sessionStorage.getItem(key);
     return raw ? new Set(JSON.parse(raw)) : new Set();
   } catch {
     return new Set();
@@ -74,7 +74,7 @@ function loadSet(key: string): Set<string> {
 }
 
 function saveSet(key: string, set: Set<string>) {
-  localStorage.setItem(key, JSON.stringify([...set]));
+  sessionStorage.setItem(key, JSON.stringify([...set]));
 }
 
 export default function NotificationCenter() {

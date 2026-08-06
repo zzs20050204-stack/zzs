@@ -162,7 +162,12 @@ public class GoodsController {
             item.setCreateTime(LocalDateTime.now());
             orderItemMapper.insert(item);
 
-            return Result.success("下单成功");
+            Map<String, Object> orderResult = new HashMap<>();
+            orderResult.put("orderId", order.getId());
+            orderResult.put("orderNo", order.getOrderNo());
+            orderResult.put("totalPrice", order.getTotalPrice());
+            orderResult.put("status", order.getStatus());
+            return Result.success(orderResult);
         }
 
         // 2. 购物车
